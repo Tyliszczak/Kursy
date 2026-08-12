@@ -3,6 +3,7 @@ import {checkApi} from './api.js';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let state={company:null,routes:[],courses:[],activeCourse:null,activeStop:0};
+let deferredInstallPrompt=null;
 
 function show(name){
   $$('.view').forEach(v=>v.hidden=v.id!==`view-${name}`);
@@ -46,6 +47,34 @@ function renderActiveCourse(){
   $('#activeStops').innerHTML=stops.map((s,i)=>`<div class="driverStop ${i===state.activeStop?'active':''}"><strong>${i+1}. ${esc(s.name)}</strong>${s.timeOffset!=null?`<div class="muted">+${esc(s.timeOffset)} min</div>`:''}</div>`).join('')||'<div class="empty">Ta trasa nie ma przystanków.</div>';
   $('#nextStopBtn').disabled=!stops.length||state.activeStop>=stops.length-1;
 }
+function isStandalone(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
+function showInstallBanner(){if(!isStandalone()) $('#installBanner').hidden=false}
+function hideInstallBanner(){ $('#installBanner').hidden=true }
+function setupInstall(){
+  if(isStandalone()) return;
+  addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();
+    deferredInstallPrompt=e;
+    showInstallBanner();
+  });
+  addEventListener('appinstalled',()=>{
+    deferredInstallPrompt=null;
+    hideInstallBanner();
+  });
+  $('#installBtn').onclick=async()=>{
+    if(deferredInstallPrompt){
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt=null;
+      hideInstallBanner();
+      return;
+    }
+    const isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    alert(isiOS?'W Safari wybierz Udostępnij, a następnie „Dodaj do ekranu początkowego”.':'Jeśli okno instalacji nie pojawiło się automatycznie, otwórz menu przeglądarki i wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”.');
+  };
+  $('#installClose').onclick=hideInstallBanner;
+  setTimeout(showInstallBanner,1200);
+}
 $('#nextStopBtn').onclick=()=>{state.activeStop++;renderActiveCourse()};
 $('#closeCourseBtn').onclick=()=>{state.activeCourse=null;renderActiveCourse()};
 
@@ -53,6 +82,7 @@ async function init(){
   $$('.nav button[data-view]').forEach(b=>b.onclick=()=>show(b.dataset.view));
   $$('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
   addEventListener('online',updateNetwork);addEventListener('offline',updateNetwork);updateNetwork();
+  setupInstall();
   try{
     const data=await loadRepoData(); state={...state,...data};
     renderHome();renderRoutes();renderCourses();renderDriver();
