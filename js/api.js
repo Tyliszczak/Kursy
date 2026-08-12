@@ -5,12 +5,13 @@ async function callApi(params={}){
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
   const r=await fetch(url,{cache:'no-store'});
   if(!r.ok) throw new Error(`API ${r.status}`);
-  return r.json();
+  const text=await r.text();
+  try{return JSON.parse(text)}catch{return {ok:true,raw:text}}
 }
 
 export async function checkApi(){
   try{
-    await callApi({action:'ping'});
+    await callApi();
     return {ok:true,label:'Połączono'};
   }catch{
     return {ok:false,label:'Brak połączenia'};
