@@ -2,6 +2,7 @@ const HOURS=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
 const MINUTES=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
 const COPIES=5;
 const DEFAULT_LOCATION='Centrum Zielonej Góry, Zielona Góra';
+const DRAFT_ROUTES_KEY='kursy.routes.draft.v2';
 let activeTimeButton=null;
 let activeTimeKind='stop';
 
@@ -24,6 +25,27 @@ function syncCard(card){
 function syncAllCards(){document.querySelectorAll('#stopRows .stopCard').forEach(syncCard)}
 function renumber(){document.querySelectorAll('#stopRows .stopCard').forEach((card,i)=>{const td=card.querySelector('tbody tr td');if(td)td.textContent=String(i+1)})}
 function stopCards(){return [...document.querySelectorAll('#stopRows .stopCard')]}
+
+function ensureImportControls(){
+  const toolbar=document.querySelector('#view-routes .toolbar');
+  if(!toolbar||document.getElementById('importRoutesBtn'))return;
+  const btn=document.createElement('button');btn.type='button';btn.className='btn';btn.id='importRoutesBtn';btn.textContent='Importuj dane';
+  const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.id='importRoutesFile';input.hidden=true;
+  toolbar.insertBefore(btn,toolbar.children[1]||null);toolbar.appendChild(input);
+  btn.addEventListener('click',()=>input.click());
+  input.addEventListener('change',async()=>{
+    const file=input.files?.[0];if(!file)return;
+    try{
+      const parsed=JSON.parse(await file.text());
+      const routes=Array.isArray(parsed)?parsed:Array.isArray(parsed?.routes)?parsed.routes:null;
+      if(!routes)throw new Error('Plik nie zawiera listy tras.');
+      if(!confirm(`Zaimportować ${routes.length} tras z pliku „${file.name}”? Obecna lokalna wersja robocza zostanie zastąpiona.`)){input.value='';return}
+      localStorage.setItem(DRAFT_ROUTES_KEY,JSON.stringify(routes));
+      alert(`Zaimportowano ${routes.length} tras. Aplikacja zostanie odświeżona.`);
+      location.reload();
+    }catch(err){alert(`Nie udało się zaimportować danych: ${err.message||err}`);input.value=''}
+  });
+}
 
 function stackLocations(){
   document.querySelectorAll('.routeTable').forEach(table=>{
@@ -50,6 +72,7 @@ function stackLocations(){
 function fixLabels(){
   document.querySelectorAll('.routeTable thead th').forEach(th=>{const t=th.textContent.trim();if(/^Do\s+\d{2}:\d{2}$/.test(t))th.textContent=t.replace(/^Do\s+/,'Na ')});
   document.querySelectorAll('.addStopBelow').forEach(b=>b.textContent='+ Dodaj przystanek');
+  const exportBtn=document.getElementById('exportRoutesBtn');if(exportBtn)exportBtn.textContent='Eksportuj dane';
 }
 function updateCourseHeader(serviceId,value){
   document.querySelectorAll('.routeTable').forEach(table=>{
@@ -109,5 +132,5 @@ document.addEventListener('click',e=>{
   }else if(e.target.id==='timePickerCancel'&&activeTimeButton){e.preventDefault();e.stopImmediatePropagation();document.getElementById('timePickerModal').hidden=true;activeTimeButton=null}
 },true);
 
-function applyFixes(){stackLocations();fixLabels();renumber()}
+function applyFixes(){stackLocations();fixLabels();renumber();ensureImportControls()}
 const observer=new MutationObserver(applyFixes);observer.observe(document.documentElement,{childList:true,subtree:true});window.addEventListener('DOMContentLoaded',applyFixes);applyFixes();
