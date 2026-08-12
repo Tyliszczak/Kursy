@@ -1,4 +1,4 @@
-const CACHE='kursy-v0.3.1';
+const CACHE='kursy-v0.3.2';
 const APP_ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./css/app.css','./js/app.js','./js/data.js','./js/api.js'];
 const DATA_ASSETS=['./data/company.json','./data/routes.json','./data/courses.json'];
 
@@ -13,10 +13,7 @@ self.addEventListener('activate',event=>{
 async function networkFirst(request){
   try{
     const response=await fetch(request,{cache:'no-store'});
-    if(response&&response.ok){
-      const copy=response.clone();
-      caches.open(CACHE).then(c=>c.put(request,copy));
-    }
+    if(response&&response.ok){const copy=response.clone();caches.open(CACHE).then(c=>c.put(request,copy));}
     return response;
   }catch{
     return (await caches.match(request)) || (request.mode==='navigate' ? caches.match('./index.html') : Response.error());
