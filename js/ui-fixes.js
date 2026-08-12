@@ -21,8 +21,9 @@ function syncCard(card){
   card.dataset.stopId=data.id;
   card.dataset.stopData=JSON.stringify(data);
 }
-function syncAllCards(){document.querySelectorAll('.stopCard').forEach(syncCard)}
+function syncAllCards(){document.querySelectorAll('#stopRows .stopCard').forEach(syncCard)}
 function renumber(){document.querySelectorAll('#stopRows .stopCard').forEach((card,i)=>{const td=card.querySelector('tbody tr td');if(td)td.textContent=String(i+1)})}
+function stopCards(){return [...document.querySelectorAll('#stopRows .stopCard')]}
 
 function stackLocations(){
   document.querySelectorAll('.routeTable').forEach(table=>{
@@ -71,11 +72,12 @@ function addBlankStopAfter(card){
   const name=clone.querySelector('.stopName'),out=clone.querySelector('.locationOut'),ret=clone.querySelector('.locationReturn');
   if(name)name.value='';if(out)out.value=DEFAULT_LOCATION;if(ret)ret.value=DEFAULT_LOCATION;
   clone.querySelectorAll('.stopTimeBtn').forEach(b=>b.textContent='00:00');
-  clone.querySelectorAll('.locationLabel').forEach(()=>{});
   const times={};clone.querySelectorAll('[data-time-service]').forEach(b=>times[b.dataset.timeService]='00:00');
   clone.dataset.stopData=JSON.stringify({id:clone.dataset.stopId,name:'',locationOut:DEFAULT_LOCATION,locationReturn:DEFAULT_LOCATION,times});
   card.insertAdjacentElement('afterend',clone);renumber();fixLabels();
 }
+function moveCard(card,dir){syncAllCards();const cards=stopCards(),i=cards.indexOf(card),j=i+dir;if(i<0||j<0||j>=cards.length)return;if(dir<0)cards[j].before(card);else cards[j].after(card);renumber()}
+function removeCard(card){syncAllCards();const cards=stopCards();if(cards.length<=1){const name=card.querySelector('.stopName'),out=card.querySelector('.locationOut'),ret=card.querySelector('.locationReturn');if(name)name.value='';if(out)out.value=DEFAULT_LOCATION;if(ret)ret.value=DEFAULT_LOCATION;card.querySelectorAll('.stopTimeBtn').forEach(b=>b.textContent='00:00');syncCard(card);return}card.remove();renumber()}
 
 document.addEventListener('input',e=>{const card=e.target.closest('.stopCard');if(card)syncCard(card)},true);
 document.addEventListener('click',e=>{
@@ -85,7 +87,15 @@ document.addEventListener('click',e=>{
   if(service){e.preventDefault();e.stopImmediatePropagation();syncAllCards();openPicker(service,'service');return}
   const add=e.target.closest('.addStopBelow');
   if(add){e.preventDefault();e.stopImmediatePropagation();const card=add.closest('.stopCard');if(card)addBlankStopAfter(card);return}
+  const up=e.target.closest('[data-up]');
+  if(up){e.preventDefault();e.stopImmediatePropagation();moveCard(up.closest('.stopCard'),-1);return}
+  const down=e.target.closest('[data-down]');
+  if(down){e.preventDefault();e.stopImmediatePropagation();moveCard(down.closest('.stopCard'),1);return}
+  const remove=e.target.closest('[data-remove]');
+  if(remove){e.preventDefault();e.stopImmediatePropagation();removeCard(remove.closest('.stopCard'));return}
   if(e.target.id==='addServiceBtn'){syncAllCards();return}
+  const removeService=e.target.closest('.removeService');
+  if(removeService){syncAllCards();return}
 },true);
 
 document.addEventListener('click',e=>{
@@ -94,7 +104,7 @@ document.addEventListener('click',e=>{
     const h=document.querySelector('[data-fix-wheel="hour"]')?.dataset.value||'00',m=document.querySelector('[data-fix-wheel="minute"]')?.dataset.value||'00',value=`${h}:${m}`;
     activeTimeButton.textContent=value;
     if(activeTimeKind==='stop')syncCard(activeTimeButton.closest('.stopCard'));
-    else{const serviceId=activeTimeButton.closest('.serviceRow')?.dataset.serviceId;if(serviceId)updateCourseHeader(serviceId,value)}
+    else{syncAllCards();const serviceId=activeTimeButton.closest('.serviceRow')?.dataset.serviceId;if(serviceId)updateCourseHeader(serviceId,value)}
     document.getElementById('timePickerModal').hidden=true;activeTimeButton=null;
   }else if(e.target.id==='timePickerCancel'&&activeTimeButton){e.preventDefault();e.stopImmediatePropagation();document.getElementById('timePickerModal').hidden=true;activeTimeButton=null}
 },true);
