@@ -25,8 +25,31 @@ function renderActiveCourse(){const wrap=$('#activeCourse');if(!state.activeCour
 
 const hours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
 const minutes=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
-function wheelHtml(type,values){return `<div class="wheelColumn" data-wheel="${type}"><div class="wheelPad"></div>${values.map(v=>`<button type="button" class="wheelOption" data-value="${v}">${v}</button>`).join('')}<div class="wheelPad"></div></div>`}
-function setupWheel(row,type,value){const wheel=row.querySelector(`[data-wheel="${type}"]`),hidden=row.querySelector(type==='hour'?'.stopHour':'.stopMinute');const opts=[...wheel.querySelectorAll('.wheelOption')];let timer;function select(v,scroll=true){hidden.value=v;opts.forEach(o=>o.classList.toggle('selected',o.dataset.value===v));const target=opts.find(o=>o.dataset.value===v);if(scroll&&target)target.scrollIntoView({block:'center'})}opts.forEach(o=>o.onclick=()=>select(o.dataset.value));wheel.addEventListener('scroll',()=>{clearTimeout(timer);timer=setTimeout(()=>{const center=wheel.scrollTop+wheel.clientHeight/2;let best=opts[0],dist=Infinity;opts.forEach(o=>{const d=Math.abs((o.offsetTop+o.offsetHeight/2)-center);if(d<dist){dist=d;best=o}});select(best.dataset.value,false)},70)});requestAnimationFrame(()=>select(value||'00'))}
+const WHEEL_COPIES=5;
+function wheelHtml(type,values){const repeated=Array.from({length:WHEEL_COPIES},(_,cycle)=>values.map(v=>`<button type="button" class="wheelOption" data-value="${v}" data-cycle="${cycle}">${v}</button>`).join('')).join('');return `<div class="wheelColumn" data-wheel="${type}"><div class="wheelPad"></div>${repeated}<div class="wheelPad"></div></div>`}
+function setupWheel(row,type,value){
+  const wheel=row.querySelector(`[data-wheel="${type}"]`),hidden=row.querySelector(type==='hour'?'.stopHour':'.stopMinute');
+  const opts=[...wheel.querySelectorAll('.wheelOption')];
+  const middleCycle=Math.floor(WHEEL_COPIES/2);
+  let timer,recentering=false;
+  const mark=v=>{hidden.value=v;opts.forEach(o=>o.classList.toggle('selected',o.dataset.value===v))};
+  const centerOption=(opt,behavior='auto')=>{if(!opt)return;const top=opt.offsetTop-(wheel.clientHeight-opt.offsetHeight)/2;wheel.scrollTo({top,behavior})};
+  const middleOption=v=>opts.find(o=>o.dataset.value===v&&Number(o.dataset.cycle)===middleCycle);
+  function settle(){
+    const center=wheel.scrollTop+wheel.clientHeight/2;
+    let best=opts[0],dist=Infinity;
+    opts.forEach(o=>{const d=Math.abs((o.offsetTop+o.offsetHeight/2)-center);if(d<dist){dist=d;best=o}});
+    mark(best.dataset.value);
+    const cycle=Number(best.dataset.cycle);
+    if(cycle<=1||cycle>=WHEEL_COPIES-2){
+      const target=middleOption(best.dataset.value);
+      if(target){recentering=true;centerOption(target,'auto');requestAnimationFrame(()=>{recentering=false})}
+    }else centerOption(best,'smooth');
+  }
+  opts.forEach(o=>o.onclick=()=>{mark(o.dataset.value);centerOption(o,'smooth')});
+  wheel.addEventListener('scroll',()=>{if(recentering)return;clearTimeout(timer);timer=setTimeout(settle,80)},{passive:true});
+  requestAnimationFrame(()=>{const initial=middleOption(value||'00');mark(value||'00');centerOption(initial,'auto')});
+}
 function updateMapButton(row){const input=row.querySelector('.stopLocation'),a=row.querySelector('.stopMap');const url=mapUrl(input.value.trim());if(url){a.href=url;a.classList.remove('disabled');a.removeAttribute('aria-disabled')}else{a.removeAttribute('href');a.classList.add('disabled');a.setAttribute('aria-disabled','true')}}
 function stopRow(stop={}){const row=document.createElement('div');row.className='stopRow';const time=String(stop.time||'00:00').match(/^(\d{2}):(\d{2})$/);const hh=time?.[1]||'00',mm=time?.[2]||'00',location=stop.location||stop.coordinates||'';row.innerHTML=`<div class="stopNo"></div><div class="stopMain"><label class="field"><span>Nazwa przystanku *</span><input class="stopName" required placeholder="np. Dworzec PKS" value="${esc(stop.name||'')}"></label><label class="field"><span>Lokalizacja / współrzędne *</span><div class="locationLine"><input class="stopLocation" required placeholder="np. 51.9429, 15.5078 lub adres" value="${esc(location)}"><a class="btn stopMap" target="_blank" rel="noopener">📍 Mapa</a></div></label></div><div class="timeField"><span>Godzina na przystanku</span><div class="timePicker"><input class="stopHour" type="hidden" value="${hh}"><input class="stopMinute" type="hidden" value="${mm}">${wheelHtml('hour',hours)}<div class="timeColon">:</div>${wheelHtml('minute',minutes)}</div></div><div class="stopActions"><button type="button" class="iconBtn" data-up title="Przesuń w górę">↑</button><button type="button" class="iconBtn" data-down title="Przesuń w dół">↓</button><button type="button" class="iconBtn dangerText" data-remove title="Usuń">✕</button></div>`;row.querySelector('[data-remove]').onclick=()=>{row.remove();renumberStops()};row.querySelector('[data-up]').onclick=()=>{const prev=row.previousElementSibling;if(prev){row.parentNode.insertBefore(row,prev);renumberStops()}};row.querySelector('[data-down]').onclick=()=>{const next=row.nextElementSibling;if(next){row.parentNode.insertBefore(next,row);renumberStops()}};row.querySelector('.stopLocation').addEventListener('input',()=>updateMapButton(row));updateMapButton(row);setupWheel(row,'hour',hh);setupWheel(row,'minute',mm);return row}
 function renumberStops(){[...$('#stopRows').children].forEach((r,i)=>r.querySelector('.stopNo').textContent=i+1)}
