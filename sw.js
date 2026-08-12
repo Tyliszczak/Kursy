@@ -1,4 +1,4 @@
-const CACHE='kursy-v0.2.1';
+const CACHE='kursy-v0.3.0';
 const APP_ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./css/app.css','./js/app.js','./js/data.js','./js/api.js'];
 const DATA_ASSETS=['./data/company.json','./data/routes.json','./data/courses.json'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll([...APP_ASSETS,...DATA_ASSETS])).then(()=>self.skipWaiting()))});
