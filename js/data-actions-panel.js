@@ -63,17 +63,18 @@
   }
 
   const mutatingSelector='[data-delete-route],[data-remove-stop],[data-add-stop-after],[data-remove-service],#addRouteBtn,#addServiceBtn,#stopEditorSave,#routeForm button[type="submit"]';
-  document.addEventListener('input',e=>{
-    if(e.target.closest('#routeEditor,#stopEditorModal'))markDirty();
-  },true);
-  document.addEventListener('change',e=>{
-    if(e.target.id!=='importRoutesFile'&&e.target.closest('#routeEditor,#stopEditorModal'))markDirty();
-  },true);
-  document.addEventListener('click',e=>{
-    if(e.target.closest(mutatingSelector))markDirty();
-  },true);
+  document.addEventListener('input',e=>{if(e.target.closest('#routeEditor,#stopEditorModal'))markDirty()},true);
+  document.addEventListener('change',e=>{if(e.target.id!=='importRoutesFile'&&e.target.closest('#routeEditor,#stopEditorModal'))markDirty()},true);
+  document.addEventListener('click',e=>{if(e.target.closest(mutatingSelector))markDirty()},true);
 
   const obs=new MutationObserver(()=>build());
   obs.observe(document.body,{childList:true,subtree:true});
   build();
+
+  if(!document.querySelector('script[data-kursy-version]')){
+    const v=document.createElement('script');
+    v.src='js/app-version.js?v=0.7.8';
+    v.dataset.kursyVersion='1';
+    document.body.appendChild(v);
+  }
 })();
