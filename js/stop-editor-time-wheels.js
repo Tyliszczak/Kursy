@@ -2,77 +2,95 @@
   const HOURS=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
   const MINUTES=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
   const COPIES=5;
-  let target=null;
 
-  const norm=(v,max)=>String(Math.max(0,Math.min(max,parseInt(String(v).replace(/\D/g,''),10)||0))).padStart(2,'0');
-
-  function wheel(type,values,current){
-    return `<div class="wheelColumn" data-se-wheel="${type}"><div class="wheelPad"></div>${Array.from({length:COPIES},(_,c)=>values.map(v=>`<button type="button" class="wheelOption ${v===current?'selected':''}" data-value="${v}" data-cycle="${c}">${v}</button>`).join('')).join('')}<div class="wheelPad"></div></div>`;
+  function pad(v,max){
+    const n=Math.max(0,Math.min(max,parseInt(String(v).replace(/\D/g,''),10)||0));
+    return String(n).padStart(2,'0');
   }
 
-  function ensureModal(){
-    if(document.getElementById('stopEditorTimeWheelModal'))return;
-    const m=document.createElement('div');
-    m.id='stopEditorTimeWheelModal';m.className='modal';m.hidden=true;
-    m.innerHTML=`<div class="modalCard"><h3>Ustaw godzinę przystanku</h3>
-      <div style="display:flex;gap:10px;align-items:end;justify-content:center;margin:8px 0 14px">
-        <label style="display:grid;gap:4px;font-size:12px;font-weight:700;text-align:center">Godzina<input id="seManualHour" inputmode="numeric" maxlength="2" style="width:74px;padding:10px;text-align:center;font-size:22px;border:1px solid #bbb;border-radius:10px"></label>
-        <span style="font-size:26px;padding-bottom:8px">:</span>
-        <label style="display:grid;gap:4px;font-size:12px;font-weight:700;text-align:center">Minuty<input id="seManualMinute" inputmode="numeric" maxlength="2" style="width:74px;padding:10px;text-align:center;font-size:22px;border:1px solid #bbb;border-radius:10px"></label>
-      </div>
-      <div class="timePicker modalTimePicker"><div id="seHour"></div><div class="timeColon">:</div><div id="seMinute"></div></div>
-      <div class="actions"><button type="button" id="seTimeSave" class="btn primary">Zapisz godzinę</button><button type="button" id="seTimeCancel" class="btn">Anuluj</button></div>
-    </div>`;
-    document.body.appendChild(m);
+  function ensureStyles(){
+    if(document.getElementById('inlineStopTimeStyles'))return;
+    const s=document.createElement('style');
+    s.id='inlineStopTimeStyles';
+    s.textContent=`
+      .inlineStopTime{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px}
+      .inlineTimePart{position:relative;width:72px;height:132px;overflow:hidden;border:1px solid #d0d5dd;border-radius:12px;background:#fff}
+      .inlineTimeWheel{height:132px;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none;padding:44px 0}
+      .inlineTimeWheel::-webkit-scrollbar{display:none}
+      .inlineTimeOption{display:flex;align-items:center;justify-content:center;height:44px;scroll-snap-align:center;font-size:18px;color:#667085;user-select:none}
+      .inlineTimeEdit{position:absolute;left:5px;right:5px;top:44px;height:44px;z-index:3;border:2px solid #d71920;border-radius:9px;background:#fff;text-align:center;font-size:22px;font-weight:800;box-sizing:border-box}
+      .inlineTimeColon{font-size:28px;font-weight:800}
+      .stopEditorTime{display:none!important}
+    `;
+    document.head.appendChild(s);
+  }
 
-    document.getElementById('seTimeCancel').onclick=()=>{m.hidden=true;target=null};
-    document.getElementById('seTimeSave').onclick=()=>{
-      if(!target)return;
-      const h=m.querySelector('[data-se-wheel="hour"]')?.dataset.value||'00';
-      const min=m.querySelector('[data-se-wheel="minute"]')?.dataset.value||'00';
-      target.value=`${h}:${min}`;
-      target.dispatchEvent(new Event('input',{bubbles:true}));
-      target.dispatchEvent(new Event('change',{bubbles:true}));
-      m.hidden=true;target=null;
+  function buildOptions(values){
+    return Array.from({length:COPIES},(_,cycle)=>values.map(v=>`<div class="inlineTimeOption" data-value="${v}" data-cycle="${cycle}">${v}</div>`).join('')).join('');
+  }
+
+  function selectAll(input){
+    requestAnimationFrame(()=>{
+      input.focus();
+      input.select();
+      try{input.setSelectionRange(0,input.value.length)}catch{}
+    });
+  }
+
+  function setupPart(part,type,current,onChange){
+    const values=type==='hour'?HOURS:MINUTES,max=type==='hour'?23:59,mid=2;
+    const wheel=part.querySelector('.inlineTimeWheel'),edit=part.querySelector('.inlineTimeEdit'),opts=[...wheel.querySelectorAll('.inlineTimeOption')];
+    let timer=null,ignore=false;
+    const middle=v=>opts.find(o=>o.dataset.value===v&&Number(o.dataset.cycle)===mid)||opts.find(o=>o.dataset.value===v);
+    const center=v=>{const o=middle(v);if(o){ignore=true;wheel.scrollTop=o.offsetTop-(wheel.clientHeight-o.offsetHeight)/2;requestAnimationFrame(()=>ignore=false)}};
+    const set=v=>{edit.value=v;part.dataset.value=v;onChange()};
+    const settle=()=>{
+      const c=wheel.scrollTop+wheel.clientHeight/2;let best=opts[0],dist=Infinity;
+      opts.forEach(o=>{const d=Math.abs(o.offsetTop+o.offsetHeight/2-c);if(d<dist){dist=d;best=o}});
+      set(best.dataset.value);center(best.dataset.value);
     };
-    document.getElementById('seManualHour').addEventListener('input',e=>manual(e.target,'hour',23));
-    document.getElementById('seManualMinute').addEventListener('input',e=>manual(e.target,'minute',59));
+    wheel.addEventListener('scroll',()=>{if(ignore)return;clearTimeout(timer);timer=setTimeout(settle,70)},{passive:true});
+    opts.forEach(o=>o.addEventListener('click',()=>{set(o.dataset.value);center(o.dataset.value)}));
+    edit.addEventListener('click',()=>selectAll(edit));
+    edit.addEventListener('focus',()=>selectAll(edit));
+    edit.addEventListener('input',()=>{
+      edit.value=edit.value.replace(/\D/g,'').slice(0,2);
+      if(!edit.value)return;
+      const v=pad(edit.value,max);part.dataset.value=v;onChange();center(v);
+    });
+    edit.addEventListener('blur',()=>{const v=pad(edit.value,max);set(v);center(v)});
+    part.dataset.value=current;edit.value=current;requestAnimationFrame(()=>center(current));
   }
 
-  function setup(type,current){
-    const w=document.querySelector(`[data-se-wheel="${type}"]`);if(!w)return;
-    const opts=[...w.querySelectorAll('.wheelOption')],mid=2,input=document.getElementById(type==='hour'?'seManualHour':'seManualMinute');
-    let timer=false;
-    const center=o=>{if(o)w.scrollTop=o.offsetTop-(w.clientHeight-o.offsetHeight)/2};
-    const middle=v=>opts.find(o=>o.dataset.value===v&&Number(o.dataset.cycle)===mid);
-    const mark=v=>{w.dataset.value=v;opts.forEach(o=>o.classList.toggle('selected',o.dataset.value===v));if(input&&document.activeElement!==input)input.value=v};
-    const settle=()=>{const c=w.scrollTop+w.clientHeight/2;let best=opts[0],d=Infinity;opts.forEach(o=>{const x=Math.abs(o.offsetTop+o.offsetHeight/2-c);if(x<d){d=x;best=o}});mark(best.dataset.value);center(middle(best.dataset.value))};
-    opts.forEach(o=>o.onclick=()=>{mark(o.dataset.value);center(middle(o.dataset.value))});
-    w.addEventListener('scroll',()=>{clearTimeout(timer);timer=setTimeout(settle,80)},{passive:true});
-    requestAnimationFrame(()=>{mark(current);center(middle(current))});
+  function enhance(input){
+    if(!input||input.dataset.inlineWheel==='1')return;
+    input.dataset.inlineWheel='1';
+    ensureStyles();
+    const [hh='00',mm='00']=(input.value||'00:00').split(':');
+    const wrap=document.createElement('div');
+    wrap.className='inlineStopTime';
+    wrap.innerHTML=`
+      <div class="inlineTimePart" data-part="hour"><div class="inlineTimeWheel">${buildOptions(HOURS)}</div><input class="inlineTimeEdit" inputmode="numeric" maxlength="2" aria-label="Godzina"></div>
+      <div class="inlineTimeColon">:</div>
+      <div class="inlineTimePart" data-part="minute"><div class="inlineTimeWheel">${buildOptions(MINUTES)}</div><input class="inlineTimeEdit" inputmode="numeric" maxlength="2" aria-label="Minuty"></div>`;
+    input.insertAdjacentElement('afterend',wrap);
+    const sync=()=>{
+      const h=wrap.querySelector('[data-part="hour"]').dataset.value||'00';
+      const m=wrap.querySelector('[data-part="minute"]').dataset.value||'00';
+      input.value=`${h}:${m}`;
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    };
+    setupPart(wrap.querySelector('[data-part="hour"]'),'hour',pad(hh,23),sync);
+    setupPart(wrap.querySelector('[data-part="minute"]'),'minute',pad(mm,59),sync);
   }
 
-  function manual(input,type,max){
-    input.value=input.value.replace(/\D/g,'').slice(0,2);if(!input.value)return;
-    const v=norm(input.value,max),w=document.querySelector(`[data-se-wheel="${type}"]`);if(!w)return;
-    w.dataset.value=v;[...w.querySelectorAll('.wheelOption')].forEach(o=>o.classList.toggle('selected',o.dataset.value===v));
-    const o=[...w.querySelectorAll('.wheelOption')].find(x=>x.dataset.value===v&&x.dataset.cycle==='2');if(o)w.scrollTop=o.offsetTop-(w.clientHeight-o.offsetHeight)/2;
-  }
+  function enhanceAll(){document.querySelectorAll('#stopEditorFields .stopEditorTime').forEach(enhance)}
 
-  function open(input){
-    ensureModal();target=input;
-    const [h='00',m='00']=(input.value||'00:00').split(':');
-    document.getElementById('seHour').innerHTML=wheel('hour',HOURS,h);
-    document.getElementById('seMinute').innerHTML=wheel('minute',MINUTES,m);
-    document.getElementById('seManualHour').value=h;
-    document.getElementById('seManualMinute').value=m;
-    document.getElementById('stopEditorTimeWheelModal').hidden=false;
-    setup('hour',h);setup('minute',m);
-  }
-
-  document.addEventListener('click',e=>{
-    const input=e.target.closest('#stopEditorFields .stopEditorTime');
-    if(!input)return;
-    e.preventDefault();e.stopImmediatePropagation();open(input);
-  },true);
+  const observer=new MutationObserver(mutations=>{
+    if(mutations.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('#stopEditorFields, .stopEditorTime')||n.querySelector?.('.stopEditorTime')))))enhanceAll();
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('click',e=>{if(e.target.closest('[data-edit-stop]'))setTimeout(enhanceAll,0)},true);
+  enhanceAll();
 })();
