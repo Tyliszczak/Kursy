@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='0.7.8';
+  const VERSION='0.7.9';
   window.KURSY_APP_VERSION=VERSION;
   const paint=()=>{const b=document.querySelector('.badge');if(b)b.textContent=`WERSJA TESTOWA ${VERSION}`};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paint,{once:true});else paint();
