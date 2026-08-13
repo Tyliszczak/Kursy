@@ -10,13 +10,13 @@
     .stopCard .stopTableWrap{cursor:pointer}
     .stopCard .routeTable input,
     .stopCard .stopMap,
-    .stopCard .stopTimeBtn,
+    .stopCard .stopTimeBtn{pointer-events:none}
     .stopCard [data-move-up],
-    .stopCard [data-move-down]{pointer-events:none}
+    .stopCard [data-move-down]{display:none!important}
     .stopCard .routeTable input{border:0!important;background:transparent!important;box-shadow:none!important;padding-left:0!important}
     .stopCard .stopMap{display:none!important}
     .stopCard .stopTimeBtn{border:0!important;background:transparent!important;box-shadow:none!important}
-    .stopCard .stopNameOpen{border:0!important;background:transparent!important;box-shadow:none!important;padding-left:0!important}
+    .stopCard .stopNameOpen{border:0!important;background:transparent!important;box-shadow:none!important;padding-left:0!important;pointer-events:none}
     .stopCard .tableActions [data-remove-stop]{position:absolute;right:8px;top:50%;transform:translateY(-50%);z-index:3}
     #routeEditorTitle{font-size:clamp(22px,4vw,32px)!important;font-weight:800!important;line-height:1.15!important}
     #stopEditorModal .editorRouteContext{display:block;font-size:14px;font-weight:700;opacity:.7;margin-bottom:4px}
@@ -85,5 +85,5 @@
     }
   });
 
-  requestAnimationFrame(()=>{const b=document.querySelector('.badge');if(b)b.textContent='WERSJA TESTOWA 0.7.0'});
+  requestAnimationFrame(()=>{const b=document.querySelector('.badge');if(b)b.textContent='WERSJA TESTOWA 0.7.1'});
 })();
