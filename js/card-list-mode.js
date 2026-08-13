@@ -82,5 +82,5 @@
     }
   });
 
-  requestAnimationFrame(()=>{const b=document.querySelector('.badge');if(b)b.textContent='WERSJA TESTOWA 0.7.2'});
+  requestAnimationFrame(()=>{const b=document.querySelector('.badge');if(b)b.textContent='WERSJA TESTOWA 0.7.3'});
 })();
