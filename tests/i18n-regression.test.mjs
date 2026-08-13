@@ -12,6 +12,8 @@ test('panel firmy i aplikacja kierowcy obsługują pięć języków',async()=>{
   for(const code of ['pl','en','de','fr','uk'])assert.match(i18n,new RegExp(`(?:const ${code}=|${code}:)`));
   assert.match(company,/from '\.\/i18n\.js'/);
   assert.match(driver,/initI18n/);
+  for(const flag of ['🇵🇱','🇬🇧','🇩🇪','🇫🇷','🇺🇦'])assert.ok(i18n.includes(flag));
+  assert.match(i18n,/aria-pressed/);
   assert.ok(!owner.includes('i18n.js'),'panel właściciela ma pozostać wyłącznie po polsku');
   assert.ok(!i18n.includes("const es="),'język hiszpański nie należy do zakresu');
 });
