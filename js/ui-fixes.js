@@ -3,6 +3,7 @@ const MINUTES=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
 const COPIES=5;
 const DEFAULT_LOCATION='Centrum Zielonej Góry, Zielona Góra';
 const DRAFT_ROUTES_KEY='kursy.routes.draft.v2';
+const SAVE_NOTICE_KEY='kursy.route.saved.notice.v1';
 let activeTimeButton=null;
 let activeTimeKind='stop';
 let applyingFixes=false;
@@ -26,6 +27,38 @@ function syncCard(card){
 function syncAllCards(){document.querySelectorAll('#stopRows .stopCard').forEach(syncCard)}
 function renumber(){document.querySelectorAll('#stopRows .stopCard').forEach((card,i)=>{const td=card.querySelector('tbody tr td'),v=String(i+1);if(td&&td.textContent!==v)td.textContent=v})}
 function stopCards(){return [...document.querySelectorAll('#stopRows .stopCard')]}
+function showEditorMessage(text,type='ok'){
+  let box=document.getElementById('routeSaveMessage');
+  if(!box){box=document.createElement('div');box.id='routeSaveMessage';box.className='notice';const form=document.getElementById('routeForm');form?.prepend(box)}
+  if(!box)return;
+  box.hidden=false;box.textContent=text;box.style.marginBottom='12px';box.style.fontWeight='700';box.style.borderColor=type==='error'?'#b42318':'#16803c';
+  box.style.background=type==='error'?'#fff1f0':'#ecfdf3';box.style.color=type==='error'?'#8a1c13':'#116329';
+  box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function readDraftRoutes(){try{const v=JSON.parse(localStorage.getItem(DRAFT_ROUTES_KEY)||'[]');return Array.isArray(v)?v:[]}catch{return []}}
+function saveRouteDirectly(){
+  syncAllCards();
+  const name=document.getElementById('routeName')?.value.trim()||'';
+  const description=document.getElementById('routeDescription')?.value.trim()||'';
+  const routeId=document.getElementById('routeId')?.value||makeId('route');
+  const services=[...document.querySelectorAll('#serviceRows .serviceRow')].map(row=>({id:row.dataset.serviceId||makeId('service'),targetTime:row.querySelector('.serviceTargetTime')?.textContent.trim()||'06:00'}));
+  const stops=stopCards().map(card=>{syncCard(card);try{return JSON.parse(card.dataset.stopData||'{}')}catch{return null}}).filter(Boolean);
+  if(!name){showEditorMessage('Podaj nazwę trasy.','error');return false}
+  if(!services.length){showEditorMessage('Dodaj co najmniej jeden kurs.','error');return false}
+  if(stops.length<2){showEditorMessage('Dodaj co najmniej dwa przystanki, aby zapisać trasę.','error');return false}
+  if(stops.some(s=>!String(s.name||'').trim())){showEditorMessage('Każdy przystanek musi mieć nazwę.','error');return false}
+  const route={id:routeId,name,description,services,stops};
+  const routes=readDraftRoutes();const i=routes.findIndex(r=>r.id===routeId);if(i>=0)routes[i]=route;else routes.push(route);
+  try{localStorage.setItem(DRAFT_ROUTES_KEY,JSON.stringify(routes));sessionStorage.setItem(SAVE_NOTICE_KEY,`Trasa „${name}” została zapisana.`)}catch{showEditorMessage('Nie udało się zapisać trasy w pamięci urządzenia.','error');return false}
+  showEditorMessage(`Trasa „${name}” została zapisana.`,'ok');
+  setTimeout(()=>location.reload(),500);
+  return true;
+}
+function restoreSaveNotice(){
+  const msg=sessionStorage.getItem(SAVE_NOTICE_KEY);if(!msg)return;sessionStorage.removeItem(SAVE_NOTICE_KEY);
+  const routesBtn=document.querySelector('[data-view="routes"]');routesBtn?.click();
+  setTimeout(()=>{const panel=document.querySelector('#view-routes > .panel');if(!panel)return;let n=document.getElementById('savedRouteNotice');if(!n){n=document.createElement('div');n.id='savedRouteNotice';n.className='notice';panel.insertBefore(n,panel.children[1]||null)}n.hidden=false;n.textContent=`✓ ${msg}`;n.style.background='#ecfdf3';n.style.borderColor='#16803c';n.style.color='#116329';n.style.fontWeight='700'},100);
+}
 
 function ensureImportControls(){
   const toolbar=document.querySelector('#view-routes .toolbar');
@@ -95,9 +128,8 @@ function addServicePreservingStops(){
 }
 function removeServicePreservingStops(button){
   syncAllCards();const row=button.closest('.serviceRow');if(!row)return;const id=row.dataset.serviceId;
-  stopCards().forEach(card=>{const btn=card.querySelector(`[data-time-service="${CSS.escape(id)}"]`);const td=btn?.closest('td');if(td)td.remove();const table=card.querySelector('.routeTable');const heads=[...table.querySelectorAll('thead th')];const serviceIds=[...table.querySelectorAll('tbody [data-time-service]')].map(b=>b.dataset.timeService);heads.forEach(th=>{if(th.textContent.trim().startsWith('Na ')&&!serviceIds.includes(id)&&th===heads[heads.length-2]){} });let data={};try{data=JSON.parse(card.dataset.stopData||'{}')}catch{}if(data.times)delete data.times[id];card.dataset.stopData=JSON.stringify(data)});
+  stopCards().forEach(card=>{const btn=card.querySelector(`[data-time-service="${CSS.escape(id)}"]`);const td=btn?.closest('td');if(td)td.remove();let data={};try{data=JSON.parse(card.dataset.stopData||'{}')}catch{}if(data.times)delete data.times[id];card.dataset.stopData=JSON.stringify(data)});
   row.remove();
-  // Odtwórz nagłówki kursów bez ruszania danych przystanków.
   const services=[...document.querySelectorAll('#serviceRows .serviceRow')].map(r=>({id:r.dataset.serviceId,time:r.querySelector('.serviceTargetTime')?.textContent.trim()||'06:00'}));
   stopCards().forEach(card=>{const head=card.querySelector('.routeTable thead tr');if(!head)return;[...head.querySelectorAll('th')].filter(th=>/^Na \d{2}:\d{2}$/.test(th.textContent.trim())).forEach(th=>th.remove());const action=head.lastElementChild;services.forEach(s=>{const th=document.createElement('th');th.textContent=`Na ${s.time}`;head.insertBefore(th,action)})});
 }
@@ -119,6 +151,10 @@ document.addEventListener('input',e=>{
   }
   syncCard(card);
 },true);
+document.addEventListener('submit',e=>{
+  if(e.target.id!=='routeForm')return;
+  e.preventDefault();e.stopImmediatePropagation();saveRouteDirectly();
+},true);
 document.addEventListener('click',e=>{
   const stopTime=e.target.closest('.stopTimeBtn');if(stopTime){e.preventDefault();e.stopImmediatePropagation();syncCard(stopTime.closest('.stopCard'));openPicker(stopTime,'stop');return}
   const service=e.target.closest('.serviceTargetTime');if(service){e.preventDefault();e.stopImmediatePropagation();syncAllCards();openPicker(service,'service');return}
@@ -136,4 +172,4 @@ document.addEventListener('click',e=>{
 },true);
 
 function applyFixes(){if(applyingFixes)return;applyingFixes=true;try{stackLocations();fixLabels();renumber();ensureImportControls()}finally{applyingFixes=false}}
-const observer=new MutationObserver(()=>{if(!applyingFixes)requestAnimationFrame(applyFixes)});observer.observe(document.documentElement,{childList:true,subtree:true});window.addEventListener('DOMContentLoaded',applyFixes);applyFixes();
+const observer=new MutationObserver(()=>{if(!applyingFixes)requestAnimationFrame(applyFixes)});observer.observe(document.documentElement,{childList:true,subtree:true});window.addEventListener('DOMContentLoaded',()=>{applyFixes();restoreSaveNotice()});applyFixes();
