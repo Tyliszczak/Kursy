@@ -1,7 +1,7 @@
 (()=>{
   const style=document.createElement('style');
   style.textContent=`
-    .editorWindowBar{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin-bottom:14px}
+    .editorWindowBar{position:sticky;top:0;z-index:1000;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin:0 -4px 14px;padding:8px 4px;background:rgba(255,255,255,.97);box-shadow:0 1px 0 rgba(16,24,40,.08)}
     .editorWindowBar .editorWindowTitle{text-align:center;font-weight:900;font-size:clamp(20px,4vw,30px);line-height:1.15;min-width:0}
     .editorWindowBtn{width:44px;height:44px;border:1px solid var(--line);border-radius:11px;background:#fff;font-size:24px;font-weight:900;display:grid;place-items:center;padding:0}
     .editorWindowBtn:active{transform:scale(.96)}
@@ -11,7 +11,6 @@
     #stopEditorModal .modalCard>.editorRouteContext{display:none!important}
   `;
   document.head.appendChild(style);
-
   const clean=s=>(s||'').trim()||'Bez nazwy';
   function askSave(){return confirm('Czy chcesz zapisać zmiany?\n\nOK — zapisz zmiany\nAnuluj — nie zapisuj zmian')}
   function makeBar(title,onExit){const el=document.createElement('div');el.className='editorWindowBar';el.innerHTML=`<button type="button" class="editorWindowBtn editorBack" aria-label="Wróć" title="Wróć">←</button><div class="editorWindowTitle"></div><button type="button" class="editorWindowBtn editorClose" aria-label="Zamknij" title="Zamknij">×</button>`;el.querySelector('.editorWindowTitle').textContent=title;el.querySelector('.editorBack').onclick=onExit;el.querySelector('.editorClose').onclick=onExit;return el}
