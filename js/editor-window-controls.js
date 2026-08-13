@@ -2,17 +2,27 @@
   const style=document.createElement('style');
   style.textContent=`
     .editorWindowBar{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;margin:0 0 14px;padding:8px 0;background:#fff;box-shadow:0 1px 0 rgba(16,24,40,.08)}
-    .editorWindowBar .editorWindowTitle{text-align:left;font-weight:900;font-size:clamp(20px,4vw,30px);line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis}
+    .editorWindowBar .editorWindowTitle{text-align:left;font-weight:900;font-size:clamp(20px,4vw,30px);line-height:1.15;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .editorWindowAction{min-height:44px;border:1px solid var(--line);border-radius:11px;background:#fff;font-size:15px;font-weight:800;padding:0 14px;white-space:nowrap}
-    .editorWindowAction.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+    .editorWindowAction.primary{background:var(--red,#d71920);border-color:var(--red,#d71920);color:#fff}
     .editorWindowAction:active{transform:scale(.98)}
     #routeEditor>.sectionTop{display:none!important}
     #routeForm>.actions{display:none!important}
     #stopEditorModal .modalCard>.actions{display:none!important}
     #stopEditorModal .modalCard>.editorRouteContext{display:none!important}
-    body.stopEditorOpen #routeEditor>.editorWindowBar{visibility:hidden;pointer-events:none}
-    #stopEditorModal .editorWindowBar{z-index:30}
-    @media(max-width:520px){.editorWindowBar{grid-template-columns:minmax(0,1fr) auto auto;gap:5px}.editorWindowAction{padding:0 9px;font-size:14px}.editorWindowBar .editorWindowTitle{font-size:18px}}
+    body.stopEditorOpen #routeEditor>.editorWindowBar{display:none!important}
+    #stopEditorModal{align-items:start;overflow:auto;padding-top:18px}
+    #stopEditorModal .modalCard{position:relative;padding-top:0;overflow:auto;max-height:calc(100vh - 36px)!important}
+    #stopEditorModal .modalCard>h3{display:none!important}
+    #stopEditorModal .editorWindowBar{top:0;z-index:2;margin:0 -20px 14px;padding:10px 20px;border-radius:18px 18px 0 0}
+    @media(max-width:700px){
+      #stopEditorModal{padding:8px}
+      #stopEditorModal .modalCard{width:100%!important;max-height:calc(100vh - 16px)!important}
+      #stopEditorModal .editorWindowBar{margin:0 -20px 12px;padding:8px 12px}
+      .editorWindowBar{grid-template-columns:minmax(0,1fr) auto auto;gap:5px}
+      .editorWindowAction{padding:0 9px;font-size:14px}
+      .editorWindowBar .editorWindowTitle{font-size:18px}
+    }
   `;
   document.head.appendChild(style);
   const clean=s=>(s||'').trim()||'Bez nazwy';
