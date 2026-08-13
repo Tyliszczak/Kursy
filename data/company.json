@@ -1,5 +1,10 @@
 {
   "companyId": "tyliszczak-travel",
   "name": "Tyliszczak Travel",
-  "version": 1
+  "version": 1,
+  "license": {
+    "maxEditorDevices": 3,
+    "maxDrivers": 10,
+    "maxDriverDevicesPerUser": 1
+  }
 }
