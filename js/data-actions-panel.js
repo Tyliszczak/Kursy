@@ -70,11 +70,4 @@
   const obs=new MutationObserver(()=>build());
   obs.observe(document.body,{childList:true,subtree:true});
   build();
-
-  if(!document.querySelector('script[data-kursy-version]')){
-    const v=document.createElement('script');
-    v.src='js/app-version.js?v=0.7.8';
-    v.dataset.kursyVersion='1';
-    document.body.appendChild(v);
-  }
 })();

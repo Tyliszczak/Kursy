@@ -21,4 +21,12 @@ Aplikacja działa jako PWA. Service worker przechowuje pliki programu offline, n
 
 ## Wersja
 
-Aktualna wersja testowa: `0.2.0`.
+Jedynym źródłem numeru wersji jest `js/app-version.js`. Korzysta z niego interfejs oraz Service Worker.
+
+## Testy regresyjne
+
+Po zmianach w edytorze uruchom `npm test`. Testy sprawdzają normalizację tras i przystanków oraz kontrakt aktywnych skryptów edytora.
+
+## Stabilizacja edytora
+
+`app-v2.js` jest jedynym właścicielem stanu i zapisu tras. Skrypty pomocnicze pozostawiono wyłącznie dla interakcji, których nie realizuje rdzeń: widoku kart, pełnoekranowych kontrolek, mapy, lokalizacji offline i kół czasu. Nieobsługiwane, historyczne nakładki usunięto.

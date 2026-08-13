@@ -1,9 +1,9 @@
 import {loadRepoData} from './data.js';
 import {checkApi} from './api.js';
+import {DEFAULT_LOCATION,clone,makeId,normalizeRoute,normalizeStop,normalizeTime} from './route-model.js';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const DRAFT_KEY='kursy.routes.draft.v2';
-const DEFAULT_LOCATION='Centrum Zielonej Góry, Zielona Góra';
 const HOURS=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
 const MINUTES=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
 let state={company:null,routes:[],repoRoutes:[],courses:[]};
@@ -13,12 +13,6 @@ let stopEditorId=null;
 let deferredInstallPrompt=null;
 
 const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
-const clone=v=>JSON.parse(JSON.stringify(v));
-const makeId=(p='id')=>`${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
-const normalizeTime=v=>/^\d{2}:\d{2}$/.test(v||'')?v:'00:00';
-
-function normalizeStop(s={}){const out=s.locationOut||s.location||s.coordinates||DEFAULT_LOCATION;return {id:s.id||makeId('stop'),name:s.name||'',locationOut:out,locationReturn:s.locationReturn||s.returnLocation||out,times:{...(s.times||{})}}}
-function normalizeRoute(r={}){return {id:r.id||makeId('route'),name:r.name||'',description:r.description||'',services:(r.services||[]).map(s=>({id:s.id||makeId('service'),targetTime:normalizeTime(s.targetTime||'06:00')})),stops:(r.stops||[]).map(normalizeStop)}}
 function readDraft(){try{const p=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');const routes=Array.isArray(p)?p:Array.isArray(p?.routes)?p.routes:null;return routes?routes.map(normalizeRoute):null}catch{return null}}
 function writeDraft(){localStorage.setItem(DRAFT_KEY,JSON.stringify(state.routes));$('#draftNotice').hidden=false;$('#dataStatus').textContent='Wersja robocza'}
 function show(view){$$('.view').forEach(v=>v.hidden=v.id!==`view-${view}`);$$('.nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#pageTitle').textContent={home:'Strona główna',routes:'Moje trasy',admin:'Administracja',driver:'Tryb kierowcy'}[view]||'Kursy'}
