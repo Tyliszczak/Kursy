@@ -26,6 +26,9 @@ test('aktywny HTML ładuje wersję i skrypty edytora tylko po jednym razie',asyn
   for(const script of ['js/app-v2.js','js/card-list-mode.js','js/editor-window-controls.js','js/app-version.js']){
     assert.equal(html.split(script).length-1,1,`${script} powinien wystąpić raz`);
   }
+  assert.ok(html.includes('js/company-license-ui.js'));
+  assert.ok(!html.includes('js/owner-license-ui.js'),'panel właściciela nie może być ładowany przez panel firmy');
+  assert.ok(!html.includes('js/driver-app.js'),'aplikacja kierowcy nie może być ładowana przez panel firmy');
   for(const legacy of ['js/app.js','js/ui-fixes.js','js/enhancements-052.js','js/editor-context-title.js','js/text-field-editor.js']){
     assert.ok(!html.includes(legacy),`${legacy} nie może być ładowany`);
   }

@@ -4,9 +4,9 @@ Firma jest właścicielem jedynego triala. Ma niezmienny `companyId`; e-mail adm
 
 ## Role i widoki
 
-- Panel firmy („Firma i licencja”) dodaje kierowców, pokazuje urządzenia i pozwala je zwalniać.
-- Panel właściciela jest osobnym adresem `#owner-licenses`, niewidocznym w menu klienta. Zarządza firmami, limitami, datami, blokadą i historią.
-- Kierowca otrzymuje link aktywacyjny, identyfikowany operacyjnie telefonem; e-mail jest opcjonalny.
+- Panel właściciela systemu (`owner.html`) tworzy firmy i zarządza licencjami. Nie jest elementem menu firmy.
+- Panel firmy (`index.html`) zarządza trasami, kierowcami i urządzeniami wyłącznie swojej firmy.
+- Aplikacja kierowcy (`driver.html?token=…`) aktywuje urządzenie kierowcy i docelowo pokazuje jego kursy. Telefon jest głównym identyfikatorem, a e-mail pozostaje opcjonalny.
 
 ## Przepływy
 
@@ -18,4 +18,4 @@ Firma jest właścicielem jedynego triala. Ma niezmienny `companyId`; e-mail adm
 
 ## Zmienione pliki
 
-`js/license-model.js` zawiera reguły domenowe; `js/device-identity.js` tworzy lokalny identyfikator i pomocniczy fingerprint; `js/license-store.js` jest wymienialnym adapterem lokalnym; `js/license-ui.js` renderuje oba panele. `docs/apps-script-license-api.md` opisuje przyszły kontrakt centralnego backendu.
+`js/license-model.js` zawiera reguły domenowe; `js/device-identity.js` tworzy lokalny identyfikator i pomocniczy fingerprint; `js/license-store.js` jest wymienialnym adapterem lokalnym. Interfejsy są rozdzielone na `owner-license-ui.js`, `company-license-ui.js` i `driver-app.js`. `docs/apps-script-license-api.md` opisuje przyszły kontrakt centralnego backendu.
