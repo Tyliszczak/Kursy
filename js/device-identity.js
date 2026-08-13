@@ -1,0 +1,3 @@
+const KEY='kursy.device.identity.v1';
+export function getDeviceIdentity(storage=globalThis.localStorage){let d;try{d=JSON.parse(storage.getItem(KEY)||'null')}catch{}if(d?.deviceId)return d;d={deviceId:globalThis.crypto?.randomUUID?.()||`device-${Date.now()}-${Math.random()}`,fingerprint:fingerprint(),createdAt:new Date().toISOString()};storage.setItem(KEY,JSON.stringify(d));return d;}
+export function fingerprint(nav=globalThis.navigator,screen=globalThis.screen){return [nav?.platform,nav?.userAgent,nav?.language,screen?.width,screen?.height,screen?.colorDepth].filter(v=>v!==undefined).join('|');}
