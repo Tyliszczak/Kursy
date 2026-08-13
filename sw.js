@@ -1,5 +1,5 @@
-const CACHE='kursy-v0.6.8';
-const APP_ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./css/app.css','./js/app-v2.js','./js/data.js','./js/api.js','./js/offline-location.js','./js/stop-editor-time-wheels.js','./js/stop-editor-location-pins.js','./js/map-editor-bridge.js','./map-editor.html'];
+const CACHE='kursy-v0.6.9';
+const APP_ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./css/app.css','./js/app-v2.js','./js/data.js','./js/api.js','./js/offline-location.js','./js/stop-editor-time-wheels.js','./js/stop-editor-location-pins.js','./js/card-list-mode.js','./js/map-editor-bridge.js','./map-editor.html'];
 const DATA_ASSETS=['./data/company.json','./data/routes.json','./data/courses.json'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll([...APP_ASSETS,...DATA_ASSETS])).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
