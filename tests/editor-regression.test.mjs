@@ -22,7 +22,7 @@ test('normalizacja trasy naprawia nieprawidłową godzinę kursu',()=>{
 });
 
 test('aktywny HTML ładuje wersję i skrypty edytora tylko po jednym razie',async()=>{
-  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const html=await readFile(new URL('../company.html',import.meta.url),'utf8');
   for(const script of ['js/app-v2.js','js/card-list-mode.js','js/editor-window-controls.js','js/app-version.js']){
     assert.equal(html.split(script).length-1,1,`${script} powinien wystąpić raz`);
   }
