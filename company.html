@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/app.css">
-</head>
+<script>(()=>{try{const s=JSON.parse(localStorage.getItem('kursy.company.session.v1')||'null');if(!s||new Date(s.expiresAt)<=new Date())location.replace('./?mode=login&next=company')}catch{location.replace('./?mode=login&next=company')}})();</script></head>
 <body>
 <div id="installBanner" class="installBanner" hidden><div><strong>Zainstaluj aplikację Kursy</strong><small>Dodaj ją do telefonu lub tabletu i uruchamiaj jak zwykłą aplikację.</small></div><div class="installActions"><button id="installBtn" class="btn primary">Zainstaluj</button><button id="installClose" class="btn">Później</button></div></div>
 <div class="app"><aside class="side"><div class="brand"><div class="logo">TEST</div><div><h1>Kursy</h1><small>system tras i kursów</small></div></div><div class="nav"><button class="active" data-view="home">🏠 Strona główna</button><div class="navTitle">Dane operacyjne</div><button data-view="routes">🛣️ Moje trasy</button><div class="navTitle">Administracja</div><button data-view="admin">🔐 Licencja i firma</button></div></aside>
