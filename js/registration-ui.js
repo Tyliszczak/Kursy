@@ -22,18 +22,18 @@ $('#registerForm').addEventListener('submit',async event=>{
     const result=await registrationApi.register({...registration,password:raw.password});
     state.companyId=result.companyId;state.email=registration.email;
     $('#emailTarget').textContent=registration.email;
-    show('verify_email');notice(result.preview?'Tryb testowy: uĹĽyj kodu 123456.':'Kod zostaĹ‚ wysĹ‚any na e-mail.','ok');
+    show('verify_email');notice(result.preview?'Tryb testowy: użyj kodu 123456.':'Kod został wysłany na e-mail.','ok');
   }catch(error){notice(error.message,'error')}
 });
 
 $('#verifyEmailForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  try{const result=await registrationApi.verifyEmail({companyId:state.companyId,code:$('#emailCode').value});show('verify_phone');notice(result.preview?'Tryb testowy: uĹĽyj kodu 123456.':'Kod SMS zostaĹ‚ wysĹ‚any.','ok')}catch(error){notice(error.message,'error')}
+  try{const result=await registrationApi.verifyEmail({companyId:state.companyId,code:$('#emailCode').value});show('verify_phone');notice(result.preview?'Tryb testowy: użyj kodu 123456.':'Kod SMS został wysłany.','ok')}catch(error){notice(error.message,'error')}
 });
 
 $('#verifyPhoneForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  try{await registrationApi.verifyPhone({companyId:state.companyId,code:$('#phoneCode').value});notice('Firma zostaĹ‚a zweryfikowana. Trial nadal oczekuje i rozpocznie siÄ™ dopiero przy pierwszej aktywacji kierowcy.','ok');setTimeout(()=>location.href='company.html',900)}catch(error){notice(error.message,'error')}
+  try{await registrationApi.verifyPhone({companyId:state.companyId,code:$('#phoneCode').value});notice('Firma została zweryfikowana. Trial nadal oczekuje i rozpocznie się dopiero przy pierwszej aktywacji kierowcy.','ok');setTimeout(()=>location.href='company.html',900)}catch(error){notice(error.message,'error')}
 });
 
 $('#loginForm').addEventListener('submit',async event=>{

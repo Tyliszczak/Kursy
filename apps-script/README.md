@@ -1,26 +1,26 @@
-# Backend rejestracji i pĹ‚atnoĹ›ci Kursy
+# Backend rejestracji i płatności Kursy
 
-Backend jest jedynym ĹşrĂłdĹ‚em prawdy dla toĹĽsamoĹ›ci firmy, potwierdzeĹ„, sesji, licencji i pĹ‚atnoĹ›ci. Frontend nie moĹĽe sam aktywowaÄ‡ licencji.
+Backend jest jedynym źródłem prawdy dla tożsamości firmy, potwierdzeń, sesji, licencji i płatności. Frontend nie może sam aktywować licencji.
 
 ## Uruchomienie
 
-1. UtwĂłrz pusty Arkusz Google i skopiuj jego identyfikator.
-2. UtwĂłrz projekt Apps Script, wklej `Code.gs` oraz manifest i uruchom rÄ™cznie funkcjÄ™ `setup`.
-3. W **Project Settings â†’ Script properties** ustaw:
+1. Utwórz pusty Arkusz Google i skopiuj jego identyfikator.
+2. Utwórz projekt Apps Script, wklej `Code.gs` oraz manifest i uruchom ręcznie funkcję `setup`.
+3. W **Project Settings → Script properties** ustaw:
    - `SPREADSHEET_ID`
-   - `OTP_PEPPER` â€” dĹ‚ugi losowy sekret
-   - `SMSAPI_TOKEN` â€” token SMSAPI (produkcja)
+   - `OTP_PEPPER` — długi losowy sekret
+   - `SMSAPI_TOKEN` — token SMSAPI (produkcja)
    - `STRIPE_SECRET_KEY`
    - `STRIPE_PRICE_START`
    - `STRIPE_PRICE_COMPANY`
    - `CHECKOUT_SUCCESS_URL`
    - `CHECKOUT_CANCEL_URL`
-4. WdrĂłĹĽ jako Web app: wykonuje uĹĽytkownik wdraĹĽajÄ…cy, dostÄ™p dla kaĹĽdego.
-5. Wstaw adres wdroĹĽenia do meta `kursy-api-url` w `index.html`.
+4. Wdróż jako Web app: wykonuje użytkownik wdrażający, dostęp dla każdego.
+5. Wstaw adres wdrożenia do meta `kursy-api-url` w `index.html`.
 
-Do testĂłw bez pĹ‚atnego SMS moĹĽna ustawiÄ‡ `ALLOW_TEST_CODES=true`. Tej opcji nie naleĹĽy uĹĽywaÄ‡ w produkcji.
+Do testów bez płatnego SMS można ustawić `ALLOW_TEST_CODES=true`. Tej opcji nie należy używać w produkcji.
 
-PĹ‚atnoĹ›Ä‡ jest potwierdzana serwer-serwer przez pobranie sesji Stripe po powrocie klienta. DziÄ™ki temu frontend nie moĹĽe sam oznaczyÄ‡ pĹ‚atnoĹ›ci jako wykonanej. Dla peĹ‚nej obsĹ‚ugi pĹ‚atnoĹ›ci asynchronicznych zalecany jest dodatkowy bezpieczny webhook (np. Cloudflare/Netlify Function), poniewaĹĽ Apps Script Web App nie udostÄ™pnia niezawodnie nagĹ‚Ăłwka `Stripe-Signature`.
+Płatność jest potwierdzana serwer-serwer przez pobranie sesji Stripe po powrocie klienta. Dzięki temu frontend nie może sam oznaczyć płatności jako wykonanej. Dla pełnej obsługi płatności asynchronicznych zalecany jest dodatkowy bezpieczny webhook (np. Cloudflare/Netlify Function), ponieważ Apps Script Web App nie udostępnia niezawodnie nagłówka `Stripe-Signature`.
 
-Rejestracja i oba potwierdzenia pozostawiajÄ… licencjÄ™ w `trial_pending`. Daty triala ustawia wyĹ‚Ä…cznie endpoint aktywacji pierwszego urzÄ…dzenia kierowcy z moduĹ‚u licencyjnego.
+Rejestracja i oba potwierdzenia pozostawiają licencję w `trial_pending`. Daty triala ustawia wyłącznie endpoint aktywacji pierwszego urządzenia kierowcy z modułu licencyjnego.
 

@@ -34,12 +34,12 @@ export function isValidPolishNip(value){
 export function validateRegistration(input){
   const errors={};
   const country=String(input.country||'PL').toUpperCase();
-  if(!String(input.companyName||'').trim()) errors.companyName='Podaj nazwÄ™ firmy.';
-  if(country==='PL'&&!isValidPolishNip(input.taxId)) errors.taxId='Podaj prawidĹ‚owy NIP.';
+  if(!String(input.companyName||'').trim()) errors.companyName='Podaj nazwę firmy.';
+  if(country==='PL'&&!isValidPolishNip(input.taxId)) errors.taxId='Podaj prawidłowy NIP.';
   if(country!=='PL'&&!normalizeTaxId(input.taxId,country)) errors.taxId='Podaj numer VAT / identyfikator podatkowy.';
-  if(!/^\S+@\S+\.\S+$/.test(normalizeEmail(input.email))) errors.email='Podaj prawidĹ‚owy e-mail.';
-  if(!/^\+\d{8,15}$/.test(normalizePhone(input.phone,country))) errors.phone='Podaj prawidĹ‚owy numer telefonu.';
-  if(String(input.password||'').length<10) errors.password='HasĹ‚o musi mieÄ‡ co najmniej 10 znakĂłw.';
+  if(!/^\S+@\S+\.\S+$/.test(normalizeEmail(input.email))) errors.email='Podaj prawidłowy e-mail.';
+  if(!/^\+\d{8,15}$/.test(normalizePhone(input.phone,country))) errors.phone='Podaj prawidłowy numer telefonu.';
+  if(String(input.password||'').length<10) errors.password='Hasło musi mieć co najmniej 10 znaków.';
   if(!input.consent) errors.consent='Zgoda na przetwarzanie danych jest wymagana.';
   return {valid:Object.keys(errors).length===0,errors};
 }
@@ -71,7 +71,7 @@ export function confirmEmail(registration,now=new Date()){
 }
 
 export function confirmPhone(registration,now=new Date()){
-  if(!registration.emailVerifiedAt) throw new Error('Najpierw potwierdĹş e-mail.');
+  if(!registration.emailVerifiedAt) throw new Error('Najpierw potwierdź e-mail.');
   registration.phoneVerifiedAt=new Date(now).toISOString();
   registration.status=RegistrationStatus.READY;
   return registration;
