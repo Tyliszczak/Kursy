@@ -47,6 +47,10 @@ document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener
 }));
 
 const query=new URLSearchParams(location.search);
+if(query.get('mode')==='login'){
+  document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='login'));
+  show('login');
+}
 if(query.get('checkout')==='success'&&query.get('session_id')){
   registrationApi.confirmCheckout(query.get('session_id')).then(result=>{
     notice(result.status==='paid'?'Płatność potwierdzona. Licencja firmy jest aktywna.':'Płatność jest jeszcze przetwarzana.','ok');
