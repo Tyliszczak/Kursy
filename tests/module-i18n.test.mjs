@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 import {MODULE_TRANSLATIONS} from '../js/i18n-modules.js';
 
-test('strona rejestracji i aplikacja kierowcy mają pięć języków',()=>{
+test('wyłączone tłumaczenia pozostają w katalogu do późniejszego przywrócenia',()=>{
   assert.deepEqual(Object.keys(MODULE_TRANSLATIONS),['pl','en','de','fr','uk']);
   for(const code of Object.keys(MODULE_TRANSLATIONS)){
     assert.ok(MODULE_TRANSLATIONS[code]['registration.title']);
