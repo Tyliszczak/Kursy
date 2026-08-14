@@ -1,5 +1,7 @@
 const SESSION_KEY='kursy.company.session.v1';
 const LOCAL_REGISTRATIONS_KEY='kursy.company.registrations.preview.v1';
+export function loadCompanySession(){try{const value=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');return value&&new Date(value.expiresAt)>new Date()?value:null}catch{return null}}
+function saveCompanySession(session){if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));return session}
 
 function apiUrl(){return document.querySelector('meta[name="kursy-api-url"]')?.content?.trim()||''}
 async function request(action,payload={}){
@@ -37,8 +39,8 @@ function localPreview(action,payload){
 export const registrationApi={
   register:payload=>request('registerCompany',payload),
   verifyEmail:payload=>request('verifyEmail',payload),
-  verifyPhone:payload=>request('verifyPhone',payload),
-  login:payload=>request('login',payload),
-  checkout:payload=>request('createCheckout',payload)
+  verifyPhone:async payload=>{const result=await request('verifyPhone',payload);saveCompanySession(result.session);return result},
+  login:async payload=>{const result=await request('login',payload);saveCompanySession(result.session);return result},
+  checkout:payload=>request('createCheckout',{...payload,sessionToken:loadCompanySession()?.token}),
+  confirmCheckout:sessionId=>request('confirmCheckout',{sessionId})
 };
-
