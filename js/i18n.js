@@ -1,3 +1,4 @@
+import {MODULE_TRANSLATIONS} from './i18n-modules.js';
 const STORAGE_KEY='kursy.language.v1';
 export const LANGUAGES=Object.freeze({pl:'Polski',uk:'Українська',en:'English',de:'Deutsch',fr:'Français'});
 const pl={
@@ -22,6 +23,7 @@ Object.assign(uk,{'driver.open':'Відкрити застосунок Trasy 2.0
 Object.assign(en,{'driver.open':'Open the Trasy 2.0 app','driver.accessBlocked':'Driver access is blocked. Contact the company administrator.','driver.accessLicense':'The application is unavailable. Company licence status: {status}.','driver.accessActivation':'This device has not been activated yet.','driver.goActivation':'Go to activation','driver.accessError':'The driver application could not be started. Refresh the page or contact the company administrator.'});
 Object.assign(de,{'driver.open':'Trasy-2.0-App öffnen','driver.accessBlocked':'Der Fahrerzugang ist gesperrt. Wenden Sie sich an den Firmenadministrator.','driver.accessLicense':'Die App ist nicht verfügbar. Lizenzstatus der Firma: {status}.','driver.accessActivation':'Dieses Gerät wurde noch nicht aktiviert.','driver.goActivation':'Zur Aktivierung','driver.accessError':'Die Fahrer-App konnte nicht gestartet werden. Aktualisieren Sie die Seite oder wenden Sie sich an den Firmenadministrator.'});
 Object.assign(fr,{'driver.open':'Ouvrir l’application Trasy 2.0','driver.accessBlocked':'L’accès du conducteur est bloqué. Contactez l’administrateur de l’entreprise.','driver.accessLicense':'L’application est indisponible. Statut de la licence : {status}.','driver.accessActivation':'Cet appareil n’a pas encore été activé.','driver.goActivation':'Accéder à l’activation','driver.accessError':'Impossible de démarrer l’application conducteur. Actualisez la page ou contactez l’administrateur de l’entreprise.'});
+for(const [code,values] of Object.entries(MODULE_TRANSLATIONS))Object.assign({pl,en,de,fr,uk}[code],values);
 const CATALOGS={pl,en,de,fr,uk};let language=localStorage.getItem(STORAGE_KEY)||navigator.language?.slice(0,2)||'pl';if(language==='ua')language='uk';if(!CATALOGS[language])language='pl';
 export const getLanguage=()=>language;
 export function t(key,vars={}){let text=CATALOGS[language]?.[key]??pl[key]??key;for(const [name,value] of Object.entries(vars))text=text.replaceAll(`{${name}}`,String(value));return text}

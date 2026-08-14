@@ -38,6 +38,7 @@ function deny(text,{allowActivation=false}={}){
 
 async function start(){
   initI18n(document.body);
+  globalThis.KURSY_T=t;
   if(!token){deny(t('driver.noToken'));return}
   const found=findDriver();
   if(!found){deny(t('driver.badLink'));return}
@@ -51,10 +52,10 @@ async function start(){
   globalThis.KURSY_DRIVER_CONTEXT=Object.freeze({companyId:company.id,driverId:driver.id,activationToken:token,dataApiUrl:null});
   gate.hidden=true;
   shell.hidden=false;
-  await import('./app.js');
-  await loadScript('./wake-style.js?v=continuous-nav-1');
-  await loadScript('./vehicles.js?v=license-gate-1');
-  await loadScript('./nav-map.js?v=1');
+  await import('./app.js?v=i18n-1');
+  await loadScript('./wake-style.js?v=i18n-1');
+  await loadScript('./vehicles.js?v=i18n-1');
+  await loadScript('./nav-map.js?v=i18n-1');
 }
 
 start().catch(error=>{console.error(error);deny(t('driver.accessError'))});
