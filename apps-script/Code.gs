@@ -10,7 +10,7 @@ const HEADERS={
   Routes:['companyId','version','routesJson','updatedAt','updatedBy'],
   Drivers:['id','companyId','name','phone','email','status','activationTokenHash','activatedAt','deletedAt','createdAt','updatedAt'],
   Devices:['id','companyId','userId','role','deviceId','fingerprintHash','activatedAt','lastSeenAt','releasedAt'],
-  OwnerSessions:['tokenHash','email','expiresAt','createdAt']
+  OwnerSessions:['tokenHash','email','expiresAt','revokedAt','createdAt']
 };
 
 function doGet(){return json_({ok:true,service:'kursy-license-api',version:'1.2.0'})}
@@ -18,7 +18,7 @@ function doPost(e){
   try{
     const body=JSON.parse(e.postData&&e.postData.contents||'{}');
     rateLimit_(body.action||'unknown');
-    const actions={registerCompany:registerCompany_,verifyEmail:verifyEmail_,verifyPhone:verifyPhone_,login:login_,createCheckout:createCheckout_,confirmCheckout:confirmCheckout_,licenseStatus:licenseStatus_,loadRoutes:loadRoutes_,saveRoutes:saveRoutes_,companySnapshot:companySnapshot_,activateAdminDevice:activateAdminDevice_,addDriver:addDriver_,createDriverActivation:createDriverActivation_,setDriverBlocked:setDriverBlocked_,releaseDriverDevices:releaseDriverDevices_,deleteDriver:deleteDriver_,releaseDevice:releaseDevice_,driverStatus:driverStatus_,activateDriverDevice:activateDriverDevice_,driverRoutes:driverRoutes_,ownerLogin:ownerLogin_,ownerSnapshot:ownerSnapshot_,ownerCreateCompany:ownerCreateCompany_,ownerUpdateCompany:ownerUpdateCompany_,ownerUpdateLicense:ownerUpdateLicense_,ownerExtendTrial:ownerExtendTrial_,ownerEndTrial:ownerEndTrial_,ownerGrantPaid:ownerGrantPaid_,ownerSetBlocked:ownerSetBlocked_};
+    const actions={registerCompany:registerCompany_,verifyEmail:verifyEmail_,verifyPhone:verifyPhone_,login:login_,createCheckout:createCheckout_,confirmCheckout:confirmCheckout_,licenseStatus:licenseStatus_,loadRoutes:loadRoutes_,saveRoutes:saveRoutes_,companySnapshot:companySnapshot_,activateAdminDevice:activateAdminDevice_,addDriver:addDriver_,createDriverActivation:createDriverActivation_,setDriverBlocked:setDriverBlocked_,releaseDriverDevices:releaseDriverDevices_,deleteDriver:deleteDriver_,releaseDevice:releaseDevice_,driverStatus:driverStatus_,activateDriverDevice:activateDriverDevice_,driverRoutes:driverRoutes_,ownerLogin:ownerLogin_,ownerLogout:ownerLogout_,ownerSnapshot:ownerSnapshot_,ownerCreateCompany:ownerCreateCompany_,ownerUpdateCompany:ownerUpdateCompany_,ownerUpdateLicense:ownerUpdateLicense_,ownerExtendTrial:ownerExtendTrial_,ownerEndTrial:ownerEndTrial_,ownerGrantPaid:ownerGrantPaid_,ownerSetBlocked:ownerSetBlocked_};
     if(!actions[body.action])throw apiError_('UNKNOWN_ACTION','Nieobsługiwana operacja.');
     return json_(actions[body.action](body.payload||{}));
   }catch(error){return json_({ok:false,code:error.code||'SERVER_ERROR',message:error.publicMessage||'Operacja nie powiodła się.'})}
@@ -197,11 +197,14 @@ function driverRoutes_(p){
   const routes=(Array.isArray(source)?source:[]).map(r=>{const services=Array.isArray(r.services)?r.services:[],times=services.map(x=>String(x.targetTime||'')).filter(Boolean);return {name:r.name,times:times,stops:(r.stops||[]).map(stop=>{const values={};services.forEach(service=>values[String(service.targetTime||'')]=stop.times&&stop.times[service.id]||'');return {name:stop.name,coordinates:stop.locationOut||'',times:values}})}});return {ok:true,routes:routes,version:row?Number(row.version)||0:0,updatedAt:row&&row.updatedAt||null};
 }
 function ownerLogin_(p){
-  required_(p,['email','password']);const props=PropertiesService.getScriptProperties(),email=normalizeEmail_(p.email),expected=props.getProperty('OWNER_EMAIL'),salt=props.getProperty('OWNER_PASSWORD_SALT'),passwordHash=props.getProperty('OWNER_PASSWORD_HASH');
-  if(!expected||!salt||!passwordHash)throw apiError_('OWNER_NOT_CONFIGURED','Logowanie właściciela nie jest skonfigurowane.');if(email!==expected||!constantEqual_(passwordHash,hash_(salt+String(p.password))))throw apiError_('INVALID_OWNER_LOGIN','Nieprawidłowy e-mail lub hasło.');
-  const token=randomToken_(),expires=new Date(Date.now()+8*3600000).toISOString();append_(SHEETS.OWNER_SESSIONS,{tokenHash:hash_(token),email:email,expiresAt:expires,createdAt:iso_()});return {ok:true,session:{token:token,email:email,expiresAt:expires}};
+  required_(p,['email','password']);const props=PropertiesService.getScriptProperties(),email=normalizeEmail_(p.email),expected=props.getProperty('OWNER_EMAIL'),salt=props.getProperty('OWNER_PASSWORD_SALT'),passwordHash=props.getProperty('OWNER_PASSWORD_HASH'),cache=CacheService.getScriptCache(),attemptKey='owner-login:'+hash_(email).slice(0,24),attempts=Number(cache.get(attemptKey)||0);
+  if(attempts>=5)throw apiError_('OWNER_LOGIN_LOCKED','Zbyt wiele nieudanych prób. Spróbuj ponownie za 15 minut.');
+  if(!expected||!salt||!passwordHash)throw apiError_('OWNER_NOT_CONFIGURED','Logowanie właściciela nie jest skonfigurowane.');
+  if(email!==expected||!constantEqual_(passwordHash,hash_(salt+String(p.password)))){cache.put(attemptKey,String(attempts+1),900);throw apiError_('INVALID_OWNER_LOGIN','Nieprawidłowy e-mail lub hasło.');}
+  cache.remove(attemptKey);const token=randomToken_(),expires=new Date(Date.now()+8*3600000).toISOString();append_(SHEETS.OWNER_SESSIONS,{tokenHash:hash_(token),email:email,expiresAt:expires,revokedAt:'',createdAt:iso_()});return {ok:true,session:{token:token,email:email,expiresAt:expires}};
 }
-function ownerSession_(token){if(!token)throw apiError_('OWNER_UNAUTHORIZED','Zaloguj się jako właściciel systemu.');const s=findOne_(SHEETS.OWNER_SESSIONS,x=>constantEqual_(x.tokenHash,hash_(token)));if(!s||new Date(s.expiresAt)<new Date())throw apiError_('OWNER_SESSION_EXPIRED','Sesja właściciela wygasła.');return s}
+function ownerSession_(token){if(!token)throw apiError_('OWNER_UNAUTHORIZED','Zaloguj się jako właściciel systemu.');const s=findOne_(SHEETS.OWNER_SESSIONS,x=>constantEqual_(x.tokenHash,hash_(token))&&!x.revokedAt);if(!s||new Date(s.expiresAt)<new Date())throw apiError_('OWNER_SESSION_EXPIRED','Sesja właściciela wygasła.');return s}
+function ownerLogout_(p){const session=ownerSession_(p.ownerToken);updateOne_(SHEETS.OWNER_SESSIONS,x=>constantEqual_(x.tokenHash,hash_(p.ownerToken)),{revokedAt:iso_()});return {ok:true,email:session.email}}
 function ownerSnapshot_(p){ownerSession_(p.ownerToken);return {ok:true,companies:rows_(SHEETS.COMPANIES).map(c=>companySnapshotData_(c.id))}}
 function ownerCreateCompany_(p){
   const owner=ownerSession_(p.ownerToken);required_(p,['name']);const now=iso_(),companyId=id_('company'),email=p.adminEmail?normalizeEmail_(p.adminEmail):'',country=String(p.country||'PL').toUpperCase(),taxId=p.taxId?normalizeTaxId_(p.taxId,country):'';

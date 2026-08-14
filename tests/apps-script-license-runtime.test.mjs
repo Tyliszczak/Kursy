@@ -19,14 +19,14 @@ class Sheet{
   getDataRange(){return new Range(this,1,1,Math.max(this.data.length,1),Math.max(this.getLastColumn(),1))}
 }
 function fixture(){
-  const sheets=new Map(),properties=new Map([['SPREADSHEET_ID','test-sheet']]);
+  const sheets=new Map(),properties=new Map([['SPREADSHEET_ID','test-sheet']]),cache=new Map();
   const book={getSheetByName:n=>sheets.get(n)||null,insertSheet:n=>{const s=new Sheet();sheets.set(n,s);return s}};
   const props={getProperty:k=>properties.get(k)||null,setProperty:(k,v)=>properties.set(k,String(v))};
   const mocks={
     SpreadsheetApp:{openById:()=>book},
     PropertiesService:{getScriptProperties:()=>props},
     LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},
-    CacheService:{getScriptCache:()=>({get:()=>null,put(){}})},
+    CacheService:{getScriptCache:()=>({get:key=>cache.get(key)||null,put:(key,value)=>cache.set(key,String(value)),remove:key=>cache.delete(key)})},
     Session:{getScriptTimeZone:()=> 'Europe/Warsaw'},
     Utilities:{getUuid:()=>String(++uid).padStart(8,'0'),computeDigest:(_,v)=>[...createHash('sha256').update(String(v)).digest()],base64EncodeWebSafe:v=>Buffer.from(v).toString('base64url'),DigestAlgorithm:{SHA_256:'SHA_256'},formatDate:()=> '202608141200'},
     ContentService:{createTextOutput:()=>({setMimeType(){return this}}),MimeType:{JSON:'JSON'}},
@@ -34,7 +34,7 @@ function fixture(){
     UrlFetchApp:{fetch(){throw new Error('external fetch disabled in tests')}}
   };
   const names=Object.keys(mocks);
-  const api=new Function(...names,source+`;return {setup,setOwnerCredentials,ownerLogin_,ownerCreateCompany_,ownerUpdateCompany_,ownerUpdateLicense_,ownerExtendTrial_,ownerEndTrial_,ownerGrantPaid_,ownerSetBlocked_,ownerSnapshot_,activateAdminDevice_,addDriver_,createDriverActivation_,setDriverBlocked_,releaseDriverDevices_,deleteDriver_,activateDriverDevice_,driverStatus_,releaseDevice_,saveRoutes_,loadRoutes_,append_,updateOne_,createSession_,publicLicense_};`)(...Object.values(mocks));
+  const api=new Function(...names,source+`;return {setup,setOwnerCredentials,ownerLogin_,ownerLogout_,ownerCreateCompany_,ownerUpdateCompany_,ownerUpdateLicense_,ownerExtendTrial_,ownerEndTrial_,ownerGrantPaid_,ownerSetBlocked_,ownerSnapshot_,activateAdminDevice_,addDriver_,createDriverActivation_,setDriverBlocked_,releaseDriverDevices_,deleteDriver_,activateDriverDevice_,driverStatus_,releaseDevice_,saveRoutes_,loadRoutes_,append_,updateOne_,createSession_,publicLicense_};`)(...Object.values(mocks));
   api.setup();api.setOwnerCredentials('owner@example.com','bardzo-dlugie-haslo');const ownerToken=api.ownerLogin_({email:'owner@example.com',password:'bardzo-dlugie-haslo'}).session.token;
   function company(overrides={}){return api.ownerCreateCompany_({ownerToken,name:'Firma Testowa',trialDays:14,...overrides}).company}
   function admin(companyId){api.append_('Admins',{id:'admin_'+companyId,companyId,name:'Admin',email:companyId+'@example.com',phone:'+48111222333',passwordHash:'x',passwordSalt:'x',emailVerifiedAt:new Date().toISOString(),phoneVerifiedAt:new Date().toISOString(),createdAt:new Date().toISOString()});return api.createSession_(companyId,'admin_'+companyId).token}
@@ -72,4 +72,11 @@ test('zwolnienie wszystkich urządzeń kierowcy nie usuwa kierowcy',()=>{
 });
 test('usunięcie kierowcy zwalnia urządzenia, unieważnia link i zachowuje historię triala',()=>{
   const f=fixture(),c=f.company(),sessionToken=f.admin(c.id),identity={sessionToken,deviceId:'admin',fingerprint:'fp'};f.api.activateAdminDevice_(identity);f.api.ownerUpdateLicense_({ownerToken:f.ownerToken,companyId:c.id,trialDays:14,adminDeviceLimit:3,driverLimit:1,driverDeviceLimit:1,currency:'PLN',monthlyPrice:''});const d=f.api.addDriver_({...identity,name:'Jan',phone:'500600700'}).driver,token=f.api.createDriverActivation_({...identity,driverId:d.id}).activationToken;const active=f.api.activateDriverDevice_({activationToken:token,deviceId:'phone-1',fingerprint:'a'}),started=active.license.trialStartedAt;const deleted=f.api.deleteDriver_({...identity,driverId:d.id});assert.equal(deleted.company.drivers.length,0);assert.equal(deleted.company.driverDevices.length,0);code('INVALID_ACTIVATION',()=>f.api.driverStatus_({activationToken:token,deviceId:'phone-1'}));assert.equal(f.api.publicLicense_(c.id).trialStartedAt,started);assert.doesNotThrow(()=>f.api.addDriver_({...identity,name:'Anna',phone:'500600701'}));
+});
+
+test('logowanie właściciela blokuje serię nieudanych prób',()=>{
+  const f=fixture();for(let i=0;i<5;i++)code('INVALID_OWNER_LOGIN',()=>f.api.ownerLogin_({email:'owner@example.com',password:'błędne-hasło-123'}));code('OWNER_LOGIN_LOCKED',()=>f.api.ownerLogin_({email:'owner@example.com',password:'bardzo-dlugie-haslo'}));
+});
+test('wylogowanie właściciela unieważnia sesję po stronie serwera',()=>{
+  const f=fixture();f.api.ownerLogout_({ownerToken:f.ownerToken});code('OWNER_SESSION_EXPIRED',()=>f.api.ownerSnapshot_({ownerToken:f.ownerToken}));
 });

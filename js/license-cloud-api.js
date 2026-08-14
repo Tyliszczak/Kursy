@@ -8,6 +8,7 @@ let adminActivation=null;export function ensureAdminDevice(){if(!adminActivation
 export function loadOwnerSession(){try{const value=JSON.parse(sessionStorage.getItem(OWNER_SESSION_KEY)||'null');return value&&new Date(value.expiresAt)>new Date()?value:null}catch{return null}}
 function ownerToken(){const token=loadOwnerSession()?.token;if(!token){const error=new Error('Zaloguj się jako właściciel systemu.');error.code='OWNER_UNAUTHORIZED';throw error}return token}
 export function clearOwnerSession(){sessionStorage.removeItem(OWNER_SESSION_KEY)}
+export async function ownerLogout(){const session=loadOwnerSession();try{if(session?.token)await requestApi('ownerLogout',{ownerToken:session.token})}finally{clearOwnerSession()}}
 export async function ownerLogin(email,password){const result=await requestApi('ownerLogin',{email,password});sessionStorage.setItem(OWNER_SESSION_KEY,JSON.stringify(result.session));return result.session}
 export const licenseCloudApi={
   endpoint:()=>apiUrl(),

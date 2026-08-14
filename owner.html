@@ -1,5 +1,30 @@
 <!doctype html>
 <html lang="pl">
-<head><meta charset="utf-8"><meta name="kursy-api-url" content=""><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#d71920"><title>Kursy — panel właściciela</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="css/app.css"></head>
-<body><main class="ownerContent"><header><div><span class="badge">WŁAŚCICIEL SYSTEMU</span><h1>Mój panel — zarządzanie licencjami</h1><p class="muted">Osobny moduł dystrybucyjny. Nie jest częścią menu żadnej firmy.</p></div></header><section class="ownerCompany"><h2>Dodaj firmę</h2><form id="newCompanyForm" class="ownerFields"><label>Nazwa firmy *<input name="name" required></label><label>E-mail administratora firmy<input name="adminEmail" type="email"></label><label>Długość triala (dni)<input name="trialDays" type="number" min="1" value="14"></label><button class="btn primary" type="submit">Utwórz firmę</button></form></section><div id="ownerCompanies"></div></main><script type="module" src="js/owner-license-ui.js"></script><script src="js/app-version.js"></script></body>
+<head>
+  <meta charset="utf-8">
+  <meta name="kursy-api-url" content="">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#d71920">
+  <meta name="description" content="Kursy - zabezpieczony panel właściciela systemu.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Kursy Właściciel">
+  <title>Kursy - panel właściciela</title>
+  <link rel="manifest" href="owner-manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="ownerInstallBanner" class="installBanner" hidden>
+    <div><strong>Zainstaluj panel właściciela</strong><small>Dodaj zabezpieczony panel do tego urządzenia i uruchamiaj go jak osobną aplikację.</small></div>
+    <div class="installActions"><button id="ownerInstallBtn" class="btn primary" type="button">Zainstaluj</button><button id="ownerInstallClose" class="btn" type="button">Później</button></div>
+  </div>
+  <main class="ownerContent">
+    <header><div><span class="badge">WŁAŚCICIEL SYSTEMU</span><h1>Mój panel - zarządzanie licencjami</h1><p class="muted">Osobny, zabezpieczony moduł dystrybucyjny. Nie jest częścią menu żadnej firmy.</p></div></header>
+    <div id="ownerApp" aria-live="polite"><div class="notice">Sprawdzanie zabezpieczonej sesji…</div></div>
+  </main>
+  <script type="module" src="js/owner-license-ui.js"></script>
+  <script type="module" src="js/owner-pwa.js"></script>
+  <script src="js/app-version.js"></script>
+</body>
 </html>
