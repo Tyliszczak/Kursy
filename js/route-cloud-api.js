@@ -1,4 +1,6 @@
 import {loadCompanySession,requestApi} from './registration-api.js';
+import {getDeviceIdentity} from './device-identity.js';
+import {ensureAdminDevice} from './license-cloud-api.js';
 
 function sessionToken(){
   const token=loadCompanySession()?.token;
@@ -11,12 +13,12 @@ function sessionToken(){
 }
 
 export async function loadCloudRoutes(){
-  const result=await requestApi('loadRoutes',{sessionToken:sessionToken()});
+  await ensureAdminDevice();const result=await requestApi('loadRoutes',{sessionToken:sessionToken(),...getDeviceIdentity()});
   return {routes:Array.isArray(result.routes)?result.routes:[],version:Number(result.version)||0,updatedAt:result.updatedAt||null,company:result.company||null};
 }
 
 export async function saveCloudRoutes(routes,expectedVersion){
-  const result=await requestApi('saveRoutes',{sessionToken:sessionToken(),routes,expectedVersion:Number(expectedVersion)||0});
+  await ensureAdminDevice();const result=await requestApi('saveRoutes',{sessionToken:sessionToken(),...getDeviceIdentity(),routes,expectedVersion:Number(expectedVersion)||0});
   return {routes:Array.isArray(result.routes)?result.routes:routes,version:Number(result.version)||0,updatedAt:result.updatedAt||null};
 }
 

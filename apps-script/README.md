@@ -1,33 +1,52 @@
-# Backend rejestracji, licencji i tras Kursy
+# Centralny backend Kursy — Google Apps Script
 
-Backend jest jedynym źródłem prawdy dla tożsamości firmy, potwierdzeń, sesji, licencji, płatności i opublikowanych tras. Frontend nie może sam aktywować licencji ani uznać lokalnego szkicu za opublikowany.
+Backend jest jedynym źródłem prawdy dla firm, administratorów, licencji, triali, cen, kierowców, urządzeń, sesji, płatności i opublikowanych tras. Frontend nie może sam przyznać licencji, uruchomić nowego triala ani uznać lokalnego szkicu za opublikowany.
 
-## Uruchomienie
+## Uruchomienie i aktualizacja
 
-1. Utwórz pusty Arkusz Google i skopiuj jego identyfikator.
-2. Utwórz projekt Apps Script, wklej `Code.gs` oraz manifest i uruchom ręcznie funkcję `setup`. Powstaną również arkusze `Routes` i `LicenseHistory`.
+1. Utwórz Arkusz Google i skopiuj jego identyfikator.
+2. Utwórz projekt Apps Script, wklej `Code.gs` oraz manifest.
 3. W **Project Settings → Script properties** ustaw:
    - `SPREADSHEET_ID`
    - `OTP_PEPPER` — długi losowy sekret
-   - `SMSAPI_TOKEN` — token SMSAPI (produkcja)
+   - `SMSAPI_TOKEN` — opcjonalny do produkcyjnego SMS
    - `STRIPE_SECRET_KEY`
    - `STRIPE_PRICE_START`
    - `STRIPE_PRICE_COMPANY`
    - `CHECKOUT_SUCCESS_URL`
    - `CHECKOUT_CANCEL_URL`
-4. Wdróż jako Web app: wykonuje użytkownik wdrażający, dostęp dla każdego.
-5. Wstaw adres wdrożenia do meta `kursy-api-url` zarówno w `index.html`, jak i `company.html`.
+4. Uruchom ręcznie `setup()`. Funkcja tworzy brakujące arkusze i bezpiecznie dopisuje nowe kolumny do istniejących danych.
+5. Jednorazowo uruchom w edytorze funkcję:
+   `setOwnerCredentials('twoj@email.pl','długie-losowe-hasło')`
+   Hasło nie trafia do frontendu ani arkusza; backend zapisuje sól i skrót w Script Properties.
+6. Wdróż jako Web app: wykonuje użytkownik wdrażający, dostęp dla każdego.
+7. Ten sam adres wdrożenia wpisz do meta `kursy-api-url` w:
+   - `index.html`
+   - `company.html`
+   - `owner.html`
+   - `driver.html`
+   - `driver-app/index.html`
 
-Do testów bez płatnego SMS można ustawić `ALLOW_TEST_CODES=true`. Tej opcji nie należy używać w produkcji.
+Przy kolejnych zmianach backendu aktualizuj istniejące wdrożenie Apps Script. Nie jest potrzebne wdrożenie Netlify.
 
-## Trasy
+## Model danych
 
-- `loadRoutes` zwraca ostatnią wersję tras firmy.
-- `saveRoutes` wymaga tokenu sesji oraz `expectedVersion`.
-- Zapis jest wykonywany pod blokadą Apps Script. Nieaktualna wersja zwraca `VERSION_CONFLICT`, więc urządzenie nie nadpisze pracy wykonanej gdzie indziej.
-- Lokalny IndexedDB zawiera wyłącznie kopie odzyskiwania. Publikacja następuje tylko po ręcznym użyciu przycisku „Zapisz zmiany”.
-- Firma z wygasłą albo zablokowaną licencją może odczytać dane, lecz nie może opublikować zmian.
+Arkusze: `Companies`, `Admins`, `Licenses`, `Drivers`, `Devices`, `Routes`, `Sessions`, `OwnerSessions`, `Verifications`, `Payments`, `LicenseHistory`.
 
-Płatność jest potwierdzana serwer-serwer przez pobranie sesji Stripe po powrocie klienta. Dla pełnej obsługi płatności asynchronicznych zalecany jest dodatkowy bezpieczny webhook, ponieważ Apps Script Web App nie udostępnia niezawodnie nagłówka `Stripe-Signature`.
+- firma rozpoczyna w `trial_pending`;
+- dodanie firmy, tras lub kierowcy nie uruchamia triala;
+- trial uruchamia tylko `activateDriverDevice` pierwszego kierowcy;
+- urządzenia zwolnione pozostają w historii;
+- limit administratorów jest sprawdzany serwerowo, domyślnie wynosi 3;
+- panel właściciela może zmienić limity, cenę, walutę, trial, płatną licencję i blokadę;
+- `saveRoutes` wymaga zgodnego `expectedVersion`, co blokuje nadpisanie zmian z innego urządzenia.
 
-Rejestracja i oba potwierdzenia pozostawiają licencję w `trial_pending`. Daty triala ustawia wyłącznie aktywacja pierwszego urządzenia kierowcy.
+## Lokalna pamięć
+
+IndexedDB zawiera wyłącznie kopie odzyskiwania tras. Publikacja następuje tylko po ręcznym „Zapisz zmiany”. Aplikacja kierowcy może zachować ostatnio pobrane trasy jako kopię offline, ale nie używa tras demonstracyjnych, gdy backend jest niedostępny.
+
+## Bezpieczeństwo i płatności
+
+Sekrety Stripe, SMS oraz właściciela znajdują się wyłącznie w Script Properties. Sesje w arkuszu są przechowywane jako skróty. Cena indywidualna firmy jest przekazywana do Stripe przez serwerowe `price_data`.
+
+Do testów bez płatnego SMS można ustawić `ALLOW_TEST_CODES=true`; nie używać w produkcji. Dla niezawodnego odnawiania subskrypcji nadal zalecany jest podpisany webhook Stripe w usłudze serwerowej obsługującej nagłówek `Stripe-Signature`.

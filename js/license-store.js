@@ -1,5 +1,5 @@
-import {createCompany} from './license-model.js';
-const KEY='kursy.license.distribution.v1';
-export function loadStore(){try{return JSON.parse(localStorage.getItem(KEY))||seed()}catch{return seed()}}
-export function saveStore(store){localStorage.setItem(KEY,JSON.stringify(store));}
-export function seed(){return {companies:[createCompany({name:'Firma testowa',adminEmail:'admin@firma.test'})]};}
+// Moduł zachowany wyłącznie dla zgodności importów starszych kopii PWA.
+// Dane licencji nie są już przechowywane lokalnie. Źródłem prawdy jest centralne API.
+export function loadStore(){throw new Error('Lokalny magazyn licencji został wyłączony. Użyj centralnego API.')}
+export function saveStore(){throw new Error('Lokalny zapis licencji został wyłączony.')}
+export function seed(){return {companies:[]}}
