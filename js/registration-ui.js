@@ -30,12 +30,7 @@ $('#registerForm').addEventListener('submit',async event=>{
 
 $('#verifyEmailForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  try{const result=await registrationApi.verifyEmail({companyId:state.companyId,code:$('#emailCode').value});show('verify_phone');notice(result.preview?t('registration.testCode'):t('registration.smsSent'),'ok')}catch(error){notice(translateMessage(error.message),'error')}
-});
-
-$('#verifyPhoneForm').addEventListener('submit',async event=>{
-  event.preventDefault();
-  try{await registrationApi.verifyPhone({companyId:state.companyId,code:$('#phoneCode').value});notice(t('registration.verified'),'ok');setTimeout(()=>location.href='company.html',900)}catch(error){notice(translateMessage(error.message),'error')}
+  try{await registrationApi.verifyEmail({companyId:state.companyId,code:$('#emailCode').value});notice(t('registration.verified'),'ok');setTimeout(()=>location.href='company.html',900)}catch(error){notice(translateMessage(error.message),'error')}
 });
 
 $('#loginForm').addEventListener('submit',async event=>{

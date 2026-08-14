@@ -1,6 +1,5 @@
 export const RegistrationStatus=Object.freeze({
   PENDING_EMAIL:'pending_email',
-  PENDING_PHONE:'pending_phone',
   READY:'trial_pending'
 });
 
@@ -57,7 +56,6 @@ export function createRegistration(input,now=new Date()){
     phone:normalizePhone(input.phone,country),
     status:RegistrationStatus.PENDING_EMAIL,
     emailVerifiedAt:null,
-    phoneVerifiedAt:null,
     licenseStatus:'trial_pending',
     trialStartedAt:null,
     createdAt:new Date(now).toISOString()
@@ -66,7 +64,7 @@ export function createRegistration(input,now=new Date()){
 
 export function confirmEmail(registration,now=new Date()){
   registration.emailVerifiedAt=new Date(now).toISOString();
-  registration.status=RegistrationStatus.PENDING_PHONE;
+  registration.status=RegistrationStatus.READY;
   return registration;
 }
 
@@ -76,4 +74,5 @@ export function confirmPhone(registration,now=new Date()){
   registration.status=RegistrationStatus.READY;
   return registration;
 }
+
 

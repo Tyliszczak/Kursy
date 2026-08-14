@@ -22,12 +22,14 @@ test('aktywacja kierowcy jest potwierdzana przez backend',async()=>{
   const activation=await text('../js/driver-app.js');
   assert.match(activation,/activateDriverDevice/);
   assert.match(activation,/getDeviceIdentity/);
-  assert.match(activation,/driver-app\/index\.html\?token=/);
+  assert.doesNotMatch(activation,/driver-app\/index\.html\?token=/);
+  assert.match(activation,/history\.replaceState/);
 });
 
 test('trasy kierowcy pochodzą z centralnego API, a lokalna pamięć jest tylko kopią offline',async()=>{
   const app=await text('../driver-app/app.js');
   assert.match(app,/licenseCloudApi\.driverRoutes/);
+  assert.doesNotMatch(app,/DRIVER_CONTEXT\.activationToken/);
   assert.match(app,/DATA_KEY/);
   assert.doesNotMatch(app,/FALLBACK_ROUTES/);
 });
@@ -36,6 +38,7 @@ test('pamięć offline jest rozdzielona według firmy i kierowcy',async()=>{
   const [app,vehicles]=await Promise.all([text('../driver-app/app.js'),text('../driver-app/vehicles.js')]);
   assert.match(app,/CACHE_SCOPE=.*companyId.*driverId/);
   assert.match(vehicles,/scope=.*companyId.*driverId/);
+  assert.doesNotMatch(vehicles,/activationToken=.*encodeURIComponent/);
 });
 
 test('service workery nie kasują wzajemnie swoich pamięci podręcznych',async()=>{
@@ -44,3 +47,4 @@ test('service workery nie kasują wzajemnie swoich pamięci podręcznych',async(
   assert.match(driver,/startsWith\('trasy-2\.0-'\)/);
   assert.match(driver,/license-cloud-api\.js/);
 });
+

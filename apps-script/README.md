@@ -8,8 +8,8 @@ Backend jest jedynym źródłem prawdy dla firm, administratorów, licencji, tri
 2. Utwórz projekt Apps Script, wklej `Code.gs` oraz manifest.
 3. W **Project Settings → Script properties** ustaw:
    - `SPREADSHEET_ID`
-   - `OTP_PEPPER` — długi losowy sekret
-   - `SMSAPI_TOKEN` — opcjonalny do produkcyjnego SMS
+   - `OTP_PEPPER` — długi losowy sekret kodów e-mail
+   - `PASSWORD_PEPPER` — osobny długi losowy sekret haseł
    - `STRIPE_SECRET_KEY`
    - `STRIPE_PRICE_START`
    - `STRIPE_PRICE_COMPANY`
@@ -31,7 +31,7 @@ Przy kolejnych zmianach backendu aktualizuj istniejące wdrożenie Apps Script. 
 
 ## Model danych
 
-Arkusze: `Companies`, `Admins`, `Licenses`, `Drivers`, `Devices`, `Routes`, `Sessions`, `OwnerSessions`, `Verifications`, `Payments`, `LicenseHistory`.
+Arkusze: `Companies`, `Admins`, `Licenses`, `Drivers`, `Devices`, `DriverSessions`, `Vehicles`, `Routes`, `Sessions`, `OwnerSessions`, `Verifications`, `Payments`, `LicenseHistory`.
 
 - firma rozpoczyna w `trial_pending`;
 - dodanie firmy, tras lub kierowcy nie uruchamia triala;
@@ -47,6 +47,6 @@ IndexedDB zawiera wyłącznie kopie odzyskiwania tras. Publikacja następuje tyl
 
 ## Bezpieczeństwo i płatności
 
-Sekrety Stripe, SMS oraz właściciela znajdują się wyłącznie w Script Properties. Sesje w arkuszu są przechowywane jako skróty. Cena indywidualna firmy jest przekazywana do Stripe przez serwerowe `price_data`.
+Sekrety Stripe, haseł, kodów e-mail oraz właściciela znajdują się wyłącznie w Script Properties. Sesje w arkuszu są przechowywane jako skróty. Cena indywidualna firmy jest przekazywana do Stripe przez serwerowe `price_data`.
 
-Do testów bez płatnego SMS można ustawić `ALLOW_TEST_CODES=true`; nie używać w produkcji. Dla niezawodnego odnawiania subskrypcji nadal zalecany jest podpisany webhook Stripe w usłudze serwerowej obsługującej nagłówek `Stripe-Signature`.
+Dla niezawodnego odnawiania subskrypcji wymagany jest podpisany webhook Stripe w usłudze serwerowej obsługującej nagłówek `Stripe-Signature`. Jednorazowe potwierdzenie Checkout nie odnawia ponownie wcześniej rozliczonej sesji. Rejestracja firmy nie wysyła SMS-ów; numer telefonu pozostaje daną kontaktową.

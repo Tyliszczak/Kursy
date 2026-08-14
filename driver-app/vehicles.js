@@ -54,8 +54,7 @@
   async function syncVehicles(){
     if(!API_URL)return false;
     try{
-      const separator=API_URL.includes('?')?'&':'?';
-      const res=await fetch(`${API_URL}${separator}companyId=${encodeURIComponent(context.companyId)}&driverId=${encodeURIComponent(context.driverId)}&activationToken=${encodeURIComponent(context.activationToken)}&t=${Date.now()}`,{cache:'no-store'});
+      const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'driverVehicles',payload:{driverSessionToken:context.driverSessionToken,deviceId:context.deviceId}}),cache:'no-store'});
       if(!res.ok)throw Error(`HTTP ${res.status}`);
       const payload=await res.json();
       vehicles=parseVehicles(payload?.data??payload);

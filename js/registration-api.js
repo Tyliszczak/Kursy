@@ -6,6 +6,7 @@ export function loadCompanySession(){
     return value&&new Date(value.expiresAt)>new Date()?value:null;
   }catch{return null}
 }
+export function clearCompanySession(){localStorage.removeItem(SESSION_KEY)}
 
 function saveCompanySession(session){
   if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));
@@ -43,10 +44,10 @@ export async function requestApi(action,payload={}){
 
 export const registrationApi={
   register:payload=>requestApi('registerCompany',payload),
-  verifyEmail:payload=>requestApi('verifyEmail',payload),
-  verifyPhone:async payload=>{const result=await requestApi('verifyPhone',payload);saveCompanySession(result.session);return result},
+  verifyEmail:async payload=>{const result=await requestApi('verifyEmail',payload);saveCompanySession(result.session);return result},
   login:async payload=>{const result=await requestApi('login',payload);saveCompanySession(result.session);return result},
+  logout:async()=>{const session=loadCompanySession();try{if(session?.token)await requestApi('logout',{sessionToken:session.token})}finally{clearCompanySession()}},
   checkout:payload=>requestApi('createCheckout',{...payload,sessionToken:loadCompanySession()?.token}),
-  confirmCheckout:sessionId=>requestApi('confirmCheckout',{sessionId})
+  confirmCheckout:sessionId=>requestApi('confirmCheckout',{sessionId,sessionToken:loadCompanySession()?.token})
 };
 

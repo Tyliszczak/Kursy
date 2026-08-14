@@ -33,7 +33,7 @@
     active={key,field,inputId:input.id};
     const coords=(input.value||'Centrum Zielonej Góry, Zielona Góra').trim();
     const url=`map-editor.html?key=${encodeURIComponent(key)}&field=${encodeURIComponent(field)}&name=${encodeURIComponent(name)}&coords=${encodeURIComponent(coords)}`;
-    window.open(url,'_blank','noopener=false');
+    window.open(url,'_blank','noopener,noreferrer');
   }
 
   function applyResult(){
@@ -63,3 +63,4 @@
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){applyResult();setTimeout(ensureButtons,0)}});
   window.addEventListener('storage',e=>{if(e.key===RESULT_KEY)applyResult()});
 })();
+

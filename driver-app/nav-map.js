@@ -81,7 +81,7 @@
       if(!map){map=L.map('routeMapCanvas',{zoomControl:true,preferCanvas:true});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);map.on('dragstart zoomstart',()=>{autoCenter=false})}
       map.eachLayer(layer=>{if(layer instanceof L.Marker)map.removeLayer(layer)});
       positionMarker=L.marker(origin,{icon:makeStopIcon('JA','#ccff33')}).addTo(map).bindPopup('Twoja pozycja');
-      stops.forEach((s,i)=>L.marker(s.coord,{icon:makeStopIcon(String(i+1),i===stops.length-1?'#ffb000':'#078df0')}).addTo(map).bindPopup(s.name));
+      stops.forEach((s,i)=>{const popup=document.createElement('span');popup.textContent=s.name;L.marker(s.coord,{icon:makeStopIcon(String(i+1),i===stops.length-1?'#ffb000':'#078df0')}).addTo(map).bindPopup(popup)});
       await buildRoute(origin,stops);updateGuidance(origin);
       if(watchId!==null)navigator.geolocation.clearWatch(watchId);
       watchId=navigator.geolocation.watchPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];window.__navAcc=p.coords.accuracy||0;if(positionMarker)positionMarker.setLatLng(ll);if(autoCenter&&map)map.setView(ll,17);updateGuidance(ll)},e=>{status.textContent='Brak aktualnej pozycji GPS.'},{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
