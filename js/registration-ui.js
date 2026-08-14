@@ -46,3 +46,9 @@ document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener
   try{const result=await registrationApi.checkout({companyId:state.companyId,plan:button.dataset.plan});if(result.checkoutUrl)location.href=result.checkoutUrl}catch(error){notice(error.message,'error')}
 }));
 
+const query=new URLSearchParams(location.search);
+if(query.get('checkout')==='success'&&query.get('session_id')){
+  registrationApi.confirmCheckout(query.get('session_id')).then(result=>{
+    notice(result.status==='paid'?'Płatność potwierdzona. Licencja firmy jest aktywna.':'Płatność jest jeszcze przetwarzana.','ok');
+  }).catch(error=>notice(error.message,'error'));
+}
