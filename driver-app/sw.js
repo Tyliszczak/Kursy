@@ -1,0 +1,6 @@
+const CACHE_NAME='trasy-2.0-v30';
+const APP_SHELL=['./','./index.html','./style.css','./license-gate.css','./access-gate.js','./app.js','./wake-style.js','./vehicles.js','./nav-map.js','./routes.js','./schedule.js','./manifest.json','./Tyliszczak.png','../js/i18n.js','../js/device-identity.js','../js/license-model.js','../js/license-store.js','../js/license-view-helpers.js'];
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL.map(u=>new Request(u,{cache:'reload'})))))});
+self.addEventListener('activate',e=>e.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('trasy-2.0-')&&k!==CACHE_NAME).map(k=>caches.delete(k)));await self.clients.claim()})()));
+self.addEventListener('message',e=>{if(e.data?.type==='SKIP_WAITING')self.skipWaiting()});
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const url=new URL(e.request.url);if(url.origin!==self.location.origin)return;e.respondWith((async()=>{const cache=await caches.open(CACHE_NAME);try{const fresh=await fetch(new Request(e.request,{cache:'no-store'}));if(fresh.ok)await cache.put(e.request,fresh.clone());return fresh}catch{const cached=await cache.match(e.request,{ignoreSearch:true});return cached??Response.error()}})())});
