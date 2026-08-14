@@ -18,28 +18,31 @@ const HEADERS={
 function doGet(){return json_({ok:true,service:'kursy-license-api',version:'1.2.0'})}
 function doPost(e){
   try{
-    const contents=e.postData&&e.postData.contents||'{}';if(contents.length>1000000)throw apiError_('REQUEST_TOO_LARGE','Żądanie jest zbyt duże.');
+    const contents=e.postData&&e.postData.contents||'{}';if(contents.length>1000000)throw apiError_('REQUEST_TOO_LARGE','Ĺ»Ä…danie jest zbyt duĹĽe.');
     const body=JSON.parse(contents);
+    assertGateway_(body);
     rateLimit_(body.action||'unknown',body.payload||{});
     const actions={registerCompany:registerCompany_,verifyEmail:verifyEmail_,login:login_,logout:logout_,createCheckout:createCheckout_,confirmCheckout:confirmCheckout_,licenseStatus:licenseStatus_,loadRoutes:loadRoutes_,saveRoutes:saveRoutes_,companySnapshot:companySnapshot_,activateAdminDevice:activateAdminDevice_,addDriver:addDriver_,createDriverActivation:createDriverActivation_,setDriverBlocked:setDriverBlocked_,releaseDriverDevices:releaseDriverDevices_,deleteDriver:deleteDriver_,releaseDevice:releaseDevice_,driverStatus:driverStatus_,activateDriverDevice:activateDriverDevice_,refreshDriverSession:refreshDriverSession_,driverRoutes:driverRoutes_,driverVehicles:driverVehicles_,ownerLogin:ownerLogin_,ownerLogout:ownerLogout_,ownerSnapshot:ownerSnapshot_,ownerCreateCompany:ownerCreateCompany_,ownerUpdateCompany:ownerUpdateCompany_,ownerUpdateLicense:ownerUpdateLicense_,ownerExtendTrial:ownerExtendTrial_,ownerEndTrial:ownerEndTrial_,ownerGrantPaid:ownerGrantPaid_,ownerSetBlocked:ownerSetBlocked_};
-    if(!actions[body.action])throw apiError_('UNKNOWN_ACTION','Nieobsługiwana operacja.');
+    if(!actions[body.action])throw apiError_('UNKNOWN_ACTION','NieobsĹ‚ugiwana operacja.');
     return json_(actions[body.action](body.payload||{}));
-  }catch(error){return json_({ok:false,code:error.code||'SERVER_ERROR',message:error.publicMessage||'Operacja nie powiodła się.'})}
+  }catch(error){return json_({ok:false,code:error.code||'SERVER_ERROR',message:error.publicMessage||'Operacja nie powiodĹ‚a siÄ™.'})}
 }
 
+function assertGateway_(body){const expected=PropertiesService.getScriptProperties().getProperty('GATEWAY_SHARED_SECRET');if(expected&&!constantEqual_(expected,String(body.gatewaySecret||'')))throw apiError_('GATEWAY_REQUIRED','BezpoĹ›redni dostÄ™p do API jest wyĹ‚Ä…czony.')}
+
 function setup(){Object.keys(HEADERS).forEach(name=>sheet_(name));PropertiesService.getScriptProperties().setProperty('SCHEMA_VERSION','2')}
-function setOwnerCredentials(email,password){if(!email||!password||String(password).length<12)throw new Error('Podaj e-mail i hasło właściciela o długości co najmniej 12 znaków.');const salt=randomToken_(),props=PropertiesService.getScriptProperties();props.setProperty('OWNER_EMAIL',normalizeEmail_(email));props.setProperty('OWNER_PASSWORD_SALT',salt);props.setProperty('OWNER_PASSWORD_HASH',passwordHash_(salt,password));return 'OK'}
+function setOwnerCredentials(email,password){if(!email||!password||String(password).length<12)throw new Error('Podaj e-mail i hasĹ‚o wĹ‚aĹ›ciciela o dĹ‚ugoĹ›ci co najmniej 12 znakĂłw.');const salt=randomToken_(),props=PropertiesService.getScriptProperties();props.setProperty('OWNER_EMAIL',normalizeEmail_(email));props.setProperty('OWNER_PASSWORD_SALT',salt);props.setProperty('OWNER_PASSWORD_HASH',passwordHash_(salt,password));return 'OK'}
 
 function registerCompany_(p){
   required_(p,['companyName','country','taxId','adminName','email','phone','password']);
   const country=String(p.country).toUpperCase(),taxId=normalizeTaxId_(p.taxId,country),email=normalizeEmail_(p.email),phone=normalizePhone_(p.phone,country);
-  if(country==='PL'&&!validNip_(taxId))throw apiError_('INVALID_TAX_ID','Nieprawidłowy NIP.');
-  if(String(p.password).length<10)throw apiError_('WEAK_PASSWORD','Hasło musi mieć co najmniej 10 znaków.');
-  const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw apiError_('REGISTRATION_BUSY','Inna rejestracja jest w toku. Spróbuj ponownie.');
+  if(country==='PL'&&!validNip_(taxId))throw apiError_('INVALID_TAX_ID','NieprawidĹ‚owy NIP.');
+  if(String(p.password).length<10)throw apiError_('WEAK_PASSWORD','HasĹ‚o musi mieÄ‡ co najmniej 10 znakĂłw.');
+  const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw apiError_('REGISTRATION_BUSY','Inna rejestracja jest w toku. SprĂłbuj ponownie.');
   try{
   const companies=rows_(SHEETS.COMPANIES),admins=rows_(SHEETS.ADMINS);
-  if(companies.some(x=>x.country===country&&String(x.taxId)===taxId))throw apiError_('COMPANY_EXISTS','Firma o tym identyfikatorze już istnieje. Zaloguj się lub odzyskaj dostęp.');
-  if(admins.some(x=>normalizeEmail_(x.email)===email))throw apiError_('EMAIL_EXISTS','Ten e-mail ma już konto.');
+  if(companies.some(x=>x.country===country&&String(x.taxId)===taxId))throw apiError_('COMPANY_EXISTS','Firma o tym identyfikatorze juĹĽ istnieje. Zaloguj siÄ™ lub odzyskaj dostÄ™p.');
+  if(admins.some(x=>normalizeEmail_(x.email)===email))throw apiError_('EMAIL_EXISTS','Ten e-mail ma juĹĽ konto.');
   const now=iso_(),companyId=id_('company'),adminId=id_('admin'),salt=randomToken_();
   append_(SHEETS.COMPANIES,{id:companyId,name:String(p.companyName).trim(),country,taxId,adminEmail:email,status:'pending_verification',createdAt:now,updatedAt:now});
   append_(SHEETS.ADMINS,{id:adminId,companyId,name:String(p.adminName).trim(),email,phone,passwordHash:passwordHash_(salt,p.password),passwordSalt:salt,emailVerifiedAt:'',phoneVerifiedAt:'',createdAt:now});
@@ -60,31 +63,31 @@ function verifyEmail_(p){
 
 function login_(p){
   required_(p,['email','password']);const email=normalizeEmail_(p.email);assertLoginAllowed_(email);const admin=findOne_(SHEETS.ADMINS,x=>normalizeEmail_(x.email)===email);
-  if(!admin||!validPassword_(admin,p.password)){recordLoginFailure_(email);throw apiError_('INVALID_LOGIN','Nieprawidłowy e-mail lub hasło.');}
-  clearLoginFailures_(email);if(!admin.emailVerifiedAt)throw apiError_('NOT_VERIFIED','Dokończ potwierdzenie adresu e-mail.');
+  if(!admin||!validPassword_(admin,p.password)){recordLoginFailure_(email);throw apiError_('INVALID_LOGIN','NieprawidĹ‚owy e-mail lub hasĹ‚o.');}
+  clearLoginFailures_(email);if(!admin.emailVerifiedAt)throw apiError_('NOT_VERIFIED','DokoĹ„cz potwierdzenie adresu e-mail.');
   return {ok:true,session:createSession_(admin.companyId,admin.id),license:publicLicense_(admin.companyId)};
 }
 function logout_(p){const s=session_(p.sessionToken);updateOne_(SHEETS.SESSIONS,x=>constantEqual_(x.tokenHash,hash_(p.sessionToken)),{revokedAt:iso_()});return {ok:true,companyId:s.companyId}}
 
 function createCheckout_(p){
-  const auth=session_(p.sessionToken),plan=String(p.plan||'');if(!['start','company'].includes(plan))throw apiError_('INVALID_PLAN','Nieprawidłowy pakiet.');
+  const auth=session_(p.sessionToken),plan=String(p.plan||'');if(!['start','company'].includes(plan))throw apiError_('INVALID_PLAN','NieprawidĹ‚owy pakiet.');
   const props=PropertiesService.getScriptProperties(),secret=props.getProperty('STRIPE_SECRET_KEY'),priceId=props.getProperty(plan==='start'?'STRIPE_PRICE_START':'STRIPE_PRICE_COMPANY'),license=publicLicense_(auth.companyId),custom=Number(license.monthlyPrice)>0;
-  if(!secret||(!custom&&!priceId))throw apiError_('PAYMENTS_NOT_CONFIGURED','Płatności nie są jeszcze skonfigurowane.');
+  if(!secret||(!custom&&!priceId))throw apiError_('PAYMENTS_NOT_CONFIGURED','PĹ‚atnoĹ›ci nie sÄ… jeszcze skonfigurowane.');
   const success=props.getProperty('CHECKOUT_SUCCESS_URL')||'https://tyliszczak.github.io/Kursy/?checkout=success&session_id={CHECKOUT_SESSION_ID}',cancel=props.getProperty('CHECKOUT_CANCEL_URL')||'https://tyliszczak.github.io/Kursy/?checkout=cancel',payload={mode:'subscription','line_items[0][quantity]':'1',success_url:success,cancel_url:cancel,'metadata[companyId]':auth.companyId,'metadata[plan]':plan};
-  if(custom){payload['line_items[0][price_data][currency]']=String(license.currency||'PLN').toLowerCase();payload['line_items[0][price_data][unit_amount]']=Math.round(Number(license.monthlyPrice)*100);payload['line_items[0][price_data][recurring][interval]']='month';payload['line_items[0][price_data][product_data][name]']='Kursy — licencja firmy'}else payload['line_items[0][price]']=priceId;
+  if(custom){payload['line_items[0][price_data][currency]']=String(license.currency||'PLN').toLowerCase();payload['line_items[0][price_data][unit_amount]']=Math.round(Number(license.monthlyPrice)*100);payload['line_items[0][price_data][recurring][interval]']='month';payload['line_items[0][price_data][product_data][name]']='Kursy â€” licencja firmy'}else payload['line_items[0][price]']=priceId;
   const response=UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions',{method:'post',headers:{Authorization:'Bearer '+secret},payload:payload,muteHttpExceptions:true});
-  const data=JSON.parse(response.getContentText()||'{}');if(response.getResponseCode()>=300)throw apiError_('PAYMENT_PROVIDER_ERROR','Nie udało się rozpocząć płatności.');
+  const data=JSON.parse(response.getContentText()||'{}');if(response.getResponseCode()>=300)throw apiError_('PAYMENT_PROVIDER_ERROR','Nie udaĹ‚o siÄ™ rozpoczÄ…Ä‡ pĹ‚atnoĹ›ci.');
   append_(SHEETS.PAYMENTS,{id:id_('payment'),companyId:auth.companyId,provider:'stripe',plan,checkoutSessionId:data.id,status:'pending',amount:custom?Math.round(Number(license.monthlyPrice)*100):'',currency:license.currency||'',paidAt:'',createdAt:iso_(),updatedAt:iso_()});
   return {ok:true,checkoutUrl:data.url,checkoutSessionId:data.id};
 }
 
 function confirmCheckout_(p){
-  required_(p,['sessionId','sessionToken']);const auth=session_(p.sessionToken),payment=findOne_(SHEETS.PAYMENTS,x=>x.checkoutSessionId===p.sessionId&&x.companyId===auth.companyId);if(!payment)throw apiError_('PAYMENT_NOT_FOUND','Nie znaleziono płatności.');
+  required_(p,['sessionId','sessionToken']);const auth=session_(p.sessionToken),payment=findOne_(SHEETS.PAYMENTS,x=>x.checkoutSessionId===p.sessionId&&x.companyId===auth.companyId);if(!payment)throw apiError_('PAYMENT_NOT_FOUND','Nie znaleziono pĹ‚atnoĹ›ci.');
   if(payment.status==='paid')return {ok:true,status:'paid',alreadyProcessed:true,license:publicLicense_(auth.companyId)};
   const secret=PropertiesService.getScriptProperties().getProperty('STRIPE_SECRET_KEY');
   const response=UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions/'+encodeURIComponent(p.sessionId),{headers:{Authorization:'Bearer '+secret},muteHttpExceptions:true});const data=JSON.parse(response.getContentText()||'{}');
   if(data.payment_status!=='paid')return {ok:true,status:data.payment_status||'pending'};
-  if(!data.metadata||data.metadata.companyId!==payment.companyId)throw apiError_('PAYMENT_MISMATCH','Płatność nie pasuje do firmy.');
+  if(!data.metadata||data.metadata.companyId!==payment.companyId)throw apiError_('PAYMENT_MISMATCH','PĹ‚atnoĹ›Ä‡ nie pasuje do firmy.');
   if(!data.subscription)throw apiError_('SUBSCRIPTION_REQUIRED','Nie znaleziono aktywnej subskrypcji.');
   const subscriptionResponse=UrlFetchApp.fetch('https://api.stripe.com/v1/subscriptions/'+encodeURIComponent(data.subscription),{headers:{Authorization:'Bearer '+secret},muteHttpExceptions:true}),subscription=JSON.parse(subscriptionResponse.getContentText()||'{}');
   if(subscriptionResponse.getResponseCode()>=300||!['active','trialing'].includes(subscription.status))throw apiError_('SUBSCRIPTION_INACTIVE','Subskrypcja nie jest aktywna.');
@@ -99,22 +102,22 @@ function licenseStatus_(p){const auth=session_(p.sessionToken);return {ok:true,l
 function loadRoutes_(p){
   const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);const row=findOne_(SHEETS.ROUTES,x=>x.companyId===auth.companyId),company=findOne_(SHEETS.COMPANIES,x=>x.id===auth.companyId),publicCompany={id:auth.companyId,name:company&&company.name||''};
   if(!row)return {ok:true,routes:[],version:0,updatedAt:null,company:publicCompany};
-  let routes;try{routes=JSON.parse(String(row.routesJson||'[]'))}catch{throw apiError_('ROUTES_CORRUPTED','Nie można odczytać zapisanych tras.')}
+  let routes;try{routes=JSON.parse(String(row.routesJson||'[]'))}catch{throw apiError_('ROUTES_CORRUPTED','Nie moĹĽna odczytaÄ‡ zapisanych tras.')}
   return {ok:true,routes:Array.isArray(routes)?routes:[],version:Number(row.version)||0,updatedAt:row.updatedAt||null,company:publicCompany};
 }
 
 function saveRoutes_(p){
   const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);const routes=p.routes,expected=Number(p.expectedVersion)||0;
-  if(!Array.isArray(routes))throw apiError_('VALIDATION_ERROR','Nieprawidłowy format tras.');
+  if(!Array.isArray(routes))throw apiError_('VALIDATION_ERROR','NieprawidĹ‚owy format tras.');
   const json=JSON.stringify(routes);
-  if(json.length>4500000)throw apiError_('DATA_TOO_LARGE','Dane tras są zbyt duże do zapisania.');
+  if(json.length>4500000)throw apiError_('DATA_TOO_LARGE','Dane tras sÄ… zbyt duĹĽe do zapisania.');
   assertRouteWriteAllowed_(auth.companyId);
   const lock=LockService.getScriptLock();
-  if(!lock.tryLock(10000))throw apiError_('SAVE_BUSY','Inny zapis jest w toku. Spróbuj ponownie.');
+  if(!lock.tryLock(10000))throw apiError_('SAVE_BUSY','Inny zapis jest w toku. SprĂłbuj ponownie.');
   try{
     const current=findOne_(SHEETS.ROUTES,x=>x.companyId===auth.companyId),version=current?Number(current.version)||0:0;
     if(version!==expected){
-      const error=apiError_('VERSION_CONFLICT','Trasy zostały zmienione na innym urządzeniu. Odśwież dane przed ponownym zapisem.');
+      const error=apiError_('VERSION_CONFLICT','Trasy zostaĹ‚y zmienione na innym urzÄ…dzeniu. OdĹ›wieĹĽ dane przed ponownym zapisem.');
       error.currentVersion=version;throw error;
     }
     const now=iso_(),next=version+1;
@@ -127,9 +130,9 @@ function saveRoutes_(p){
 
 function assertRouteWriteAllowed_(companyId){
   const l=findOne_(SHEETS.LICENSES,x=>x.companyId===companyId);
-  if(!l||String(l.blocked)==='true'||l.status==='blocked')throw apiError_('COMPANY_BLOCKED','Dostęp firmy jest zablokowany.');
+  if(!l||String(l.blocked)==='true'||l.status==='blocked')throw apiError_('COMPANY_BLOCKED','DostÄ™p firmy jest zablokowany.');
   const now=new Date();
-  if(l.status==='expired'||(l.status==='trial_active'&&l.trialEndsAt&&new Date(l.trialEndsAt)<now)||(l.status==='active'&&l.paidEndsAt&&new Date(l.paidEndsAt)<now))throw apiError_('LICENSE_EXPIRED','Licencja wygasła. Dane pozostają bezpieczne, ale zapis zmian jest zablokowany.');
+  if(l.status==='expired'||(l.status==='trial_active'&&l.trialEndsAt&&new Date(l.trialEndsAt)<now)||(l.status==='active'&&l.paidEndsAt&&new Date(l.paidEndsAt)<now))throw apiError_('LICENSE_EXPIRED','Licencja wygasĹ‚a. Dane pozostajÄ… bezpieczne, ale zapis zmian jest zablokowany.');
   if(!['trial_pending','trial_active','active'].includes(String(l.status)))throw apiError_('LICENSE_REQUIRED','Brak uprawnienia do zapisu tras.');
 }
 
@@ -144,20 +147,20 @@ function companySnapshotData_(companyId){
 function publicDriver_(d){return {id:d.id,name:d.name,phone:d.phone,email:d.email||'',status:d.status||'inactive',activatedAt:d.activatedAt||null,hasActivationLink:Boolean(d.activationTokenHash)}}
 function publicDevice_(d){return {id:d.id,deviceId:d.deviceId,userId:d.userId,role:d.role,activatedAt:d.activatedAt||null,lastSeenAt:d.lastSeenAt||null}}
 function activeDevices_(companyId){return rows_(SHEETS.DEVICES).filter(x=>x.companyId===companyId&&!x.releasedAt)}
-function assertAdminDevice_(auth,p){required_(p,['deviceId']);const license=findOne_(SHEETS.LICENSES,x=>x.companyId===auth.companyId);if(!license||effectiveLicenseStatus_(license)==='blocked')throw apiError_('COMPANY_BLOCKED','Dostęp firmy jest zablokowany.');const ok=activeDevices_(auth.companyId).some(x=>x.role==='admin'&&x.userId===auth.adminId&&x.deviceId===String(p.deviceId));if(!ok)throw apiError_('ADMIN_DEVICE_NOT_ACTIVE','To urządzenie administratora nie jest aktywne.')}
+function assertAdminDevice_(auth,p){required_(p,['deviceId']);const license=findOne_(SHEETS.LICENSES,x=>x.companyId===auth.companyId);if(!license||effectiveLicenseStatus_(license)==='blocked')throw apiError_('COMPANY_BLOCKED','DostÄ™p firmy jest zablokowany.');const ok=activeDevices_(auth.companyId).some(x=>x.role==='admin'&&x.userId===auth.adminId&&x.deviceId===String(p.deviceId));if(!ok)throw apiError_('ADMIN_DEVICE_NOT_ACTIVE','To urzÄ…dzenie administratora nie jest aktywne.')}
 function effectiveLicenseStatus_(l,now=new Date()){if(String(l.blocked)==='true'||l.status==='blocked')return 'blocked';if(l.status==='trial_active'&&l.trialEndsAt&&new Date(l.trialEndsAt)<=now)return 'expired';if(l.status==='active'&&l.paidEndsAt&&new Date(l.paidEndsAt)<=now)return 'expired';return String(l.status)}
-function licenseAllowsDriver_(companyId){const l=findOne_(SHEETS.LICENSES,x=>x.companyId===companyId);if(!l)throw apiError_('LICENSE_NOT_FOUND','Brak licencji.');const status=effectiveLicenseStatus_(l);if(!['trial_pending','trial_active','active'].includes(status))throw apiError_(status==='blocked'?'COMPANY_BLOCKED':'LICENSE_EXPIRED',status==='blocked'?'Dostęp firmy jest zablokowany.':'Licencja firmy wygasła.');return l}
+function licenseAllowsDriver_(companyId){const l=findOne_(SHEETS.LICENSES,x=>x.companyId===companyId);if(!l)throw apiError_('LICENSE_NOT_FOUND','Brak licencji.');const status=effectiveLicenseStatus_(l);if(!['trial_pending','trial_active','active'].includes(status))throw apiError_(status==='blocked'?'COMPANY_BLOCKED':'LICENSE_EXPIRED',status==='blocked'?'DostÄ™p firmy jest zablokowany.':'Licencja firmy wygasĹ‚a.');return l}
 function activateAdminDevice_(p){
-  const auth=session_(p.sessionToken);required_(p,['deviceId']);const l=findOne_(SHEETS.LICENSES,x=>x.companyId===auth.companyId);if(!l)throw apiError_('LICENSE_NOT_FOUND','Brak licencji.');if(effectiveLicenseStatus_(l)==='blocked')throw apiError_('COMPANY_BLOCKED','Dostęp firmy jest zablokowany.');
+  const auth=session_(p.sessionToken);required_(p,['deviceId']);const l=findOne_(SHEETS.LICENSES,x=>x.companyId===auth.companyId);if(!l)throw apiError_('LICENSE_NOT_FOUND','Brak licencji.');if(effectiveLicenseStatus_(l)==='blocked')throw apiError_('COMPANY_BLOCKED','DostÄ™p firmy jest zablokowany.');
   const active=activeDevices_(auth.companyId).filter(x=>x.role==='admin'),known=rows_(SHEETS.DEVICES).find(x=>x.companyId===auth.companyId&&x.role==='admin'&&x.deviceId===String(p.deviceId));
-  if((!known||known.releasedAt)&&active.length>=Number(l.adminDeviceLimit))throw apiError_('ADMIN_DEVICE_LIMIT','Osiągnięto limit urządzeń administratorów.');
+  if((!known||known.releasedAt)&&active.length>=Number(l.adminDeviceLimit))throw apiError_('ADMIN_DEVICE_LIMIT','OsiÄ…gniÄ™to limit urzÄ…dzeĹ„ administratorĂłw.');
   const now=iso_(),patch={userId:auth.adminId,fingerprintHash:hash_(String(p.fingerprint||'')),lastSeenAt:now,releasedAt:''};
   if(known)updateOne_(SHEETS.DEVICES,x=>x.id===known.id,patch);else append_(SHEETS.DEVICES,{id:id_('device'),companyId:auth.companyId,userId:auth.adminId,role:'admin',deviceId:String(p.deviceId),fingerprintHash:patch.fingerprintHash,activatedAt:now,lastSeenAt:now,releasedAt:''});
   history_(auth.companyId,'admin_device_activated',{deviceId:String(p.deviceId),adminId:auth.adminId});return {ok:true,company:companySnapshotData_(auth.companyId)};
 }
 function addDriver_(p){
   const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);required_(p,['name','phone']);const snapshot=companySnapshotData_(auth.companyId);
-  if(snapshot.drivers.length>=snapshot.license.limits.drivers)throw apiError_('DRIVER_LIMIT','Osiągnięto limit kierowców.');
+  if(snapshot.drivers.length>=snapshot.license.limits.drivers)throw apiError_('DRIVER_LIMIT','OsiÄ…gniÄ™to limit kierowcĂłw.');
   const company=findOne_(SHEETS.COMPANIES,x=>x.id===auth.companyId),now=iso_(),driver={id:id_('driver'),companyId:auth.companyId,name:String(p.name).trim(),phone:normalizePhone_(p.phone,company&&company.country||'PL'),email:p.email?normalizeEmail_(p.email):'',status:'inactive',activationTokenHash:'',activationExpiresAt:'',activatedAt:'',createdAt:now,updatedAt:now};
   append_(SHEETS.DRIVERS,driver);history_(auth.companyId,'driver_added',{driverId:driver.id,phoneMasked:mask_(driver.phone)});return {ok:true,driver:publicDriver_(driver),company:companySnapshotData_(auth.companyId)};
 }
@@ -175,20 +178,20 @@ function createDriverActivation_(p){
   const token=randomToken_(),expiresAt=new Date(Date.now()+48*3600000).toISOString();updateOne_(SHEETS.DRIVERS,x=>x.id===driver.id,{activationTokenHash:hash_(token),activationExpiresAt:expiresAt,updatedAt:iso_()});history_(auth.companyId,'driver_activation_link_created',{driverId:driver.id,expiresAt});return {ok:true,activationToken:token,expiresAt};
 }
 function releaseDevice_(p){
-  const auth=session_(p.sessionToken);required_(p,['actorDeviceId','targetDeviceId','role']);assertAdminDevice_(auth,{deviceId:p.actorDeviceId});const device=findOne_(SHEETS.DEVICES,x=>x.companyId===auth.companyId&&x.deviceId===String(p.targetDeviceId)&&x.role===String(p.role)&&!x.releasedAt);if(!device)throw apiError_('DEVICE_NOT_FOUND','Nie znaleziono aktywnego urządzenia.');
+  const auth=session_(p.sessionToken);required_(p,['actorDeviceId','targetDeviceId','role']);assertAdminDevice_(auth,{deviceId:p.actorDeviceId});const device=findOne_(SHEETS.DEVICES,x=>x.companyId===auth.companyId&&x.deviceId===String(p.targetDeviceId)&&x.role===String(p.role)&&!x.releasedAt);if(!device)throw apiError_('DEVICE_NOT_FOUND','Nie znaleziono aktywnego urzÄ…dzenia.');
   updateOne_(SHEETS.DEVICES,x=>x.id===device.id,{releasedAt:iso_()});if(device.role==='driver')revokeDriverSessions_(device.userId,device.deviceId);history_(auth.companyId,'device_released',{role:device.role,deviceId:device.deviceId});return {ok:true,company:companySnapshotData_(auth.companyId)};
 }
-function driverByToken_(token){if(!token)throw apiError_('INVALID_ACTIVATION','Nieprawidłowy link aktywacyjny.');const tokenHash=hash_(String(token)),driver=findOne_(SHEETS.DRIVERS,x=>!x.deletedAt&&x.activationTokenHash&&constantEqual_(x.activationTokenHash,tokenHash));if(!driver||!driver.activationExpiresAt||new Date(driver.activationExpiresAt)<=new Date())throw apiError_('INVALID_ACTIVATION','Nieprawidłowy lub nieaktualny link aktywacyjny.');return driver}
+function driverByToken_(token){if(!token)throw apiError_('INVALID_ACTIVATION','NieprawidĹ‚owy link aktywacyjny.');const tokenHash=hash_(String(token)),driver=findOne_(SHEETS.DRIVERS,x=>!x.deletedAt&&x.activationTokenHash&&constantEqual_(x.activationTokenHash,tokenHash));if(!driver||!driver.activationExpiresAt||new Date(driver.activationExpiresAt)<=new Date())throw apiError_('INVALID_ACTIVATION','NieprawidĹ‚owy lub nieaktualny link aktywacyjny.');return driver}
 function driverStatus_(p){
   const session=p.driverSessionToken?driverSession_(p.driverSessionToken,p.deviceId,p.fingerprint):null,driver=session?findOne_(SHEETS.DRIVERS,x=>x.id===session.driverId):driverByToken_(p.activationToken),license=publicLicense_(driver.companyId),company=findOne_(SHEETS.COMPANIES,x=>x.id===driver.companyId),device=String(p.deviceId||''),active=activeDevices_(driver.companyId).some(x=>x.role==='driver'&&x.userId===driver.id&&x.deviceId===device);
   return {ok:true,driver:publicDriver_(driver),company:{id:company.id,name:company.name},license:license,activeDevice:active,mayUse:Boolean(session)&&['trial_active','active'].includes(license.status)&&driver.status==='active'&&active};
 }
 function activateDriverDevice_(p){
-  required_(p,['activationToken','deviceId']);const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw apiError_('ACTIVATION_BUSY','Inna aktywacja jest w toku. Spróbuj ponownie.');
+  required_(p,['activationToken','deviceId']);const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw apiError_('ACTIVATION_BUSY','Inna aktywacja jest w toku. SprĂłbuj ponownie.');
   try{
-    const driver=driverByToken_(p.activationToken);if(driver.status==='blocked')throw apiError_('DRIVER_BLOCKED','Dostęp kierowcy jest zablokowany.');const l=licenseAllowsDriver_(driver.companyId),all=rows_(SHEETS.DEVICES),active=all.filter(x=>x.companyId===driver.companyId&&x.role==='driver'&&!x.releasedAt),known=all.find(x=>x.companyId===driver.companyId&&x.role==='driver'&&x.deviceId===String(p.deviceId));
-    if(known&&!known.releasedAt&&known.userId!==driver.id)throw apiError_('DEVICE_ASSIGNED','To urządzenie jest przypisane do innego kierowcy.');
-    if((!known||known.releasedAt)&&active.length>=Number(l.driverDeviceLimit))throw apiError_('DRIVER_DEVICE_LIMIT','Osiągnięto limit urządzeń kierowców.');
+    const driver=driverByToken_(p.activationToken);if(driver.status==='blocked')throw apiError_('DRIVER_BLOCKED','DostÄ™p kierowcy jest zablokowany.');const l=licenseAllowsDriver_(driver.companyId),all=rows_(SHEETS.DEVICES),active=all.filter(x=>x.companyId===driver.companyId&&x.role==='driver'&&!x.releasedAt),known=all.find(x=>x.companyId===driver.companyId&&x.role==='driver'&&x.deviceId===String(p.deviceId));
+    if(known&&!known.releasedAt&&known.userId!==driver.id)throw apiError_('DEVICE_ASSIGNED','To urzÄ…dzenie jest przypisane do innego kierowcy.');
+    if((!known||known.releasedAt)&&active.length>=Number(l.driverDeviceLimit))throw apiError_('DRIVER_DEVICE_LIMIT','OsiÄ…gniÄ™to limit urzÄ…dzeĹ„ kierowcĂłw.');
     const now=iso_(),devicePatch={userId:driver.id,fingerprintHash:hash_(String(p.fingerprint||'')),lastSeenAt:now,releasedAt:''};
     if(known)updateOne_(SHEETS.DEVICES,x=>x.id===known.id,devicePatch);else append_(SHEETS.DEVICES,{id:id_('device'),companyId:driver.companyId,userId:driver.id,role:'driver',deviceId:String(p.deviceId),fingerprintHash:devicePatch.fingerprintHash,activatedAt:now,lastSeenAt:now,releasedAt:''});
     updateOne_(SHEETS.DRIVERS,x=>x.id===driver.id,{status:'active',activationTokenHash:'',activationExpiresAt:'',activatedAt:driver.activatedAt||now,updatedAt:now});
@@ -197,30 +200,30 @@ function activateDriverDevice_(p){
   }finally{lock.releaseLock()}
 }
 function driverRoutes_(p){
-  required_(p,['driverSessionToken','deviceId']);const status=driverStatus_(p);if(!status.mayUse)throw apiError_('DRIVER_ACCESS_DENIED','Brak dostępu do tras.');const row=findOne_(SHEETS.ROUTES,x=>x.companyId===status.company.id);let source=[];if(row)source=parseJson_(row.routesJson,[]);
+  required_(p,['driverSessionToken','deviceId']);const status=driverStatus_(p);if(!status.mayUse)throw apiError_('DRIVER_ACCESS_DENIED','Brak dostÄ™pu do tras.');const row=findOne_(SHEETS.ROUTES,x=>x.companyId===status.company.id);let source=[];if(row)source=parseJson_(row.routesJson,[]);
   const routes=(Array.isArray(source)?source:[]).map(r=>{const services=Array.isArray(r.services)?r.services:[],times=services.map(x=>String(x.targetTime||'')).filter(Boolean);return {name:r.name,times:times,stops:(r.stops||[]).map(stop=>{const values={};services.forEach(service=>values[String(service.targetTime||'')]=stop.times&&stop.times[service.id]||'');return {name:stop.name,coordinates:stop.locationOut||'',times:values}})}});return {ok:true,routes:routes,version:row?Number(row.version)||0:0,updatedAt:row&&row.updatedAt||null};
 }
-function driverVehicles_(p){required_(p,['driverSessionToken','deviceId']);const status=driverStatus_(p);if(!status.mayUse)throw apiError_('DRIVER_ACCESS_DENIED','Brak dostępu do pojazdów.');const row=findOne_(SHEETS.VEHICLES,x=>x.companyId===status.company.id),vehicles=row?parseJson_(row.vehiclesJson,[]):[];return {ok:true,data:{POJAZDY:Array.isArray(vehicles)?vehicles:[]},updatedAt:row&&row.updatedAt||null}}
+function driverVehicles_(p){required_(p,['driverSessionToken','deviceId']);const status=driverStatus_(p);if(!status.mayUse)throw apiError_('DRIVER_ACCESS_DENIED','Brak dostÄ™pu do pojazdĂłw.');const row=findOne_(SHEETS.VEHICLES,x=>x.companyId===status.company.id),vehicles=row?parseJson_(row.vehiclesJson,[]):[];return {ok:true,data:{POJAZDY:Array.isArray(vehicles)?vehicles:[]},updatedAt:row&&row.updatedAt||null}}
 function createDriverSession_(companyId,driverId,deviceId){const token=randomToken_(),refreshToken=randomToken_(),now=iso_(),expiresAt=new Date(Date.now()+24*3600000).toISOString(),refreshExpiresAt=new Date(Date.now()+30*86400000).toISOString(),absoluteExpiresAt=new Date(Date.now()+180*86400000).toISOString();append_(SHEETS.DRIVER_SESSIONS,{tokenHash:hash_(token),refreshTokenHash:hash_(refreshToken),companyId,driverId,deviceId,expiresAt,refreshExpiresAt,absoluteExpiresAt,revokedAt:'',createdAt:now,lastSeenAt:now});return {token,refreshToken,companyId,driverId,deviceId,expiresAt,refreshExpiresAt,absoluteExpiresAt}}
-function activeDriverSessionDevice_(session,deviceId,fingerprint){if(session.deviceId!==String(deviceId))throw apiError_('DRIVER_SESSION_DEVICE_MISMATCH','Sesja nie należy do tego urządzenia.');if(!fingerprint)throw apiError_('DRIVER_FINGERPRINT_REQUIRED','Nie można potwierdzić urządzenia.');const device=findOne_(SHEETS.DEVICES,x=>x.companyId===session.companyId&&x.role==='driver'&&x.userId===session.driverId&&x.deviceId===String(deviceId)&&!x.releasedAt);if(!device)throw apiError_('DRIVER_DEVICE_RELEASED','To urządzenie zostało zwolnione.');if(!constantEqual_(device.fingerprintHash,hash_(String(fingerprint))))throw apiError_('DRIVER_DEVICE_MISMATCH','Parametry urządzenia nie są zgodne z aktywacją.');return device}
-function driverSession_(token,deviceId,fingerprint){if(!token||!deviceId)throw apiError_('DRIVER_UNAUTHORIZED','Brak sesji urządzenia kierowcy.');const tokenHash=hash_(String(token)),session=findOne_(SHEETS.DRIVER_SESSIONS,x=>constantEqual_(x.tokenHash,tokenHash)&&!x.revokedAt);if(!session||new Date(session.expiresAt)<=new Date())throw apiError_('DRIVER_SESSION_EXPIRED','Sesja kierowcy wygasła i wymaga odnowienia.');activeDriverSessionDevice_(session,deviceId,fingerprint);updateOne_(SHEETS.DRIVER_SESSIONS,x=>constantEqual_(x.tokenHash,tokenHash),{lastSeenAt:iso_()});return session}
-function refreshDriverSession_(p){required_(p,['refreshToken','deviceId','fingerprint']);const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw apiError_('SESSION_REFRESH_BUSY','Odnowienie sesji jest w toku. Spróbuj ponownie.');try{const refreshHash=hash_(String(p.refreshToken)),session=findOne_(SHEETS.DRIVER_SESSIONS,x=>x.refreshTokenHash&&constantEqual_(x.refreshTokenHash,refreshHash)&&!x.revokedAt),now=new Date();if(!session||new Date(session.refreshExpiresAt)<=now||new Date(session.absoluteExpiresAt)<=now)throw apiError_('DRIVER_REFRESH_EXPIRED','Długoterminowa sesja wygasła. Poproś administratora firmy o nowy link.');activeDriverSessionDevice_(session,p.deviceId,p.fingerprint);const driver=findOne_(SHEETS.DRIVERS,x=>x.id===session.driverId&&!x.deletedAt);if(!driver||driver.status!=='active')throw apiError_('DRIVER_BLOCKED','Dostęp kierowcy jest zablokowany.');licenseAllowsDriver_(session.companyId);const token=randomToken_(),refreshToken=randomToken_(),expiresAt=new Date(now.getTime()+24*3600000).toISOString(),absolute=new Date(session.absoluteExpiresAt),refreshExpiresAt=new Date(Math.min(now.getTime()+30*86400000,absolute.getTime())).toISOString(),updated=iso_();updateOne_(SHEETS.DRIVER_SESSIONS,x=>constantEqual_(x.refreshTokenHash,refreshHash),{tokenHash:hash_(token),refreshTokenHash:hash_(refreshToken),expiresAt,refreshExpiresAt,lastSeenAt:updated});return {ok:true,driverSession:{token,refreshToken,companyId:session.companyId,driverId:session.driverId,deviceId:session.deviceId,expiresAt,refreshExpiresAt,absoluteExpiresAt:session.absoluteExpiresAt}}}finally{lock.releaseLock()}}
+function activeDriverSessionDevice_(session,deviceId,fingerprint){if(session.deviceId!==String(deviceId))throw apiError_('DRIVER_SESSION_DEVICE_MISMATCH','Sesja nie naleĹĽy do tego urzÄ…dzenia.');if(!fingerprint)throw apiError_('DRIVER_FINGERPRINT_REQUIRED','Nie moĹĽna potwierdziÄ‡ urzÄ…dzenia.');const device=findOne_(SHEETS.DEVICES,x=>x.companyId===session.companyId&&x.role==='driver'&&x.userId===session.driverId&&x.deviceId===String(deviceId)&&!x.releasedAt);if(!device)throw apiError_('DRIVER_DEVICE_RELEASED','To urzÄ…dzenie zostaĹ‚o zwolnione.');if(!constantEqual_(device.fingerprintHash,hash_(String(fingerprint))))throw apiError_('DRIVER_DEVICE_MISMATCH','Parametry urzÄ…dzenia nie sÄ… zgodne z aktywacjÄ….');return device}
+function driverSession_(token,deviceId,fingerprint){if(!token||!deviceId)throw apiError_('DRIVER_UNAUTHORIZED','Brak sesji urzÄ…dzenia kierowcy.');const tokenHash=hash_(String(token)),session=findOne_(SHEETS.DRIVER_SESSIONS,x=>constantEqual_(x.tokenHash,tokenHash)&&!x.revokedAt);if(!session||new Date(session.expiresAt)<=new Date())throw apiError_('DRIVER_SESSION_EXPIRED','Sesja kierowcy wygasĹ‚a i wymaga odnowienia.');activeDriverSessionDevice_(session,deviceId,fingerprint);updateOne_(SHEETS.DRIVER_SESSIONS,x=>constantEqual_(x.tokenHash,tokenHash),{lastSeenAt:iso_()});return session}
+function refreshDriverSession_(p){required_(p,['refreshToken','deviceId','fingerprint']);const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw apiError_('SESSION_REFRESH_BUSY','Odnowienie sesji jest w toku. SprĂłbuj ponownie.');try{const refreshHash=hash_(String(p.refreshToken)),session=findOne_(SHEETS.DRIVER_SESSIONS,x=>x.refreshTokenHash&&constantEqual_(x.refreshTokenHash,refreshHash)&&!x.revokedAt),now=new Date();if(!session||new Date(session.refreshExpiresAt)<=now||new Date(session.absoluteExpiresAt)<=now)throw apiError_('DRIVER_REFRESH_EXPIRED','DĹ‚ugoterminowa sesja wygasĹ‚a. PoproĹ› administratora firmy o nowy link.');activeDriverSessionDevice_(session,p.deviceId,p.fingerprint);const driver=findOne_(SHEETS.DRIVERS,x=>x.id===session.driverId&&!x.deletedAt);if(!driver||driver.status!=='active')throw apiError_('DRIVER_BLOCKED','DostÄ™p kierowcy jest zablokowany.');licenseAllowsDriver_(session.companyId);const token=randomToken_(),refreshToken=randomToken_(),expiresAt=new Date(now.getTime()+24*3600000).toISOString(),absolute=new Date(session.absoluteExpiresAt),refreshExpiresAt=new Date(Math.min(now.getTime()+30*86400000,absolute.getTime())).toISOString(),updated=iso_();updateOne_(SHEETS.DRIVER_SESSIONS,x=>constantEqual_(x.refreshTokenHash,refreshHash),{tokenHash:hash_(token),refreshTokenHash:hash_(refreshToken),expiresAt,refreshExpiresAt,lastSeenAt:updated});return {ok:true,driverSession:{token,refreshToken,companyId:session.companyId,driverId:session.driverId,deviceId:session.deviceId,expiresAt,refreshExpiresAt,absoluteExpiresAt:session.absoluteExpiresAt}}}finally{lock.releaseLock()}}
 function revokeDriverSessions_(driverId,deviceId=''){const now=iso_();rows_(SHEETS.DRIVER_SESSIONS).filter(x=>x.driverId===driverId&&!x.revokedAt&&(!deviceId||x.deviceId===deviceId)).forEach(row=>updateOne_(SHEETS.DRIVER_SESSIONS,x=>x.tokenHash===row.tokenHash,{revokedAt:now}))}
 function ownerLogin_(p){
   required_(p,['email','password']);const props=PropertiesService.getScriptProperties(),email=normalizeEmail_(p.email),expected=props.getProperty('OWNER_EMAIL'),salt=props.getProperty('OWNER_PASSWORD_SALT'),passwordHash=props.getProperty('OWNER_PASSWORD_HASH'),cache=CacheService.getScriptCache(),attemptKey='owner-login:'+hash_(email).slice(0,24),attempts=Number(cache.get(attemptKey)||0);
-  if(attempts>=5)throw apiError_('OWNER_LOGIN_LOCKED','Zbyt wiele nieudanych prób. Spróbuj ponownie za 15 minut.');
-  if(!expected||!salt||!passwordHash)throw apiError_('OWNER_NOT_CONFIGURED','Logowanie właściciela nie jest skonfigurowane.');
+  if(attempts>=5)throw apiError_('OWNER_LOGIN_LOCKED','Zbyt wiele nieudanych prĂłb. SprĂłbuj ponownie za 15 minut.');
+  if(!expected||!salt||!passwordHash)throw apiError_('OWNER_NOT_CONFIGURED','Logowanie wĹ‚aĹ›ciciela nie jest skonfigurowane.');
   const modernOwnerHash=passwordHash_(salt,p.password),legacyOwnerHash=hash_(salt+String(p.password));
-  if(email!==expected||(!constantEqual_(passwordHash,modernOwnerHash)&&!constantEqual_(passwordHash,legacyOwnerHash))){cache.put(attemptKey,String(attempts+1),900);throw apiError_('INVALID_OWNER_LOGIN','Nieprawidłowy e-mail lub hasło.');}
+  if(email!==expected||(!constantEqual_(passwordHash,modernOwnerHash)&&!constantEqual_(passwordHash,legacyOwnerHash))){cache.put(attemptKey,String(attempts+1),900);throw apiError_('INVALID_OWNER_LOGIN','NieprawidĹ‚owy e-mail lub hasĹ‚o.');}
   if(!constantEqual_(passwordHash,modernOwnerHash))props.setProperty('OWNER_PASSWORD_HASH',modernOwnerHash);
   cache.remove(attemptKey);const token=randomToken_(),expires=new Date(Date.now()+8*3600000).toISOString();append_(SHEETS.OWNER_SESSIONS,{tokenHash:hash_(token),email:email,expiresAt:expires,revokedAt:'',createdAt:iso_()});return {ok:true,session:{token:token,email:email,expiresAt:expires}};
 }
-function ownerSession_(token){if(!token)throw apiError_('OWNER_UNAUTHORIZED','Zaloguj się jako właściciel systemu.');const s=findOne_(SHEETS.OWNER_SESSIONS,x=>constantEqual_(x.tokenHash,hash_(token))&&!x.revokedAt);if(!s||new Date(s.expiresAt)<new Date())throw apiError_('OWNER_SESSION_EXPIRED','Sesja właściciela wygasła.');return s}
+function ownerSession_(token){if(!token)throw apiError_('OWNER_UNAUTHORIZED','Zaloguj siÄ™ jako wĹ‚aĹ›ciciel systemu.');const s=findOne_(SHEETS.OWNER_SESSIONS,x=>constantEqual_(x.tokenHash,hash_(token))&&!x.revokedAt);if(!s||new Date(s.expiresAt)<new Date())throw apiError_('OWNER_SESSION_EXPIRED','Sesja wĹ‚aĹ›ciciela wygasĹ‚a.');return s}
 function ownerLogout_(p){const session=ownerSession_(p.ownerToken);updateOne_(SHEETS.OWNER_SESSIONS,x=>constantEqual_(x.tokenHash,hash_(p.ownerToken)),{revokedAt:iso_()});return {ok:true,email:session.email}}
 function ownerSnapshot_(p){ownerSession_(p.ownerToken);return {ok:true,companies:rows_(SHEETS.COMPANIES).map(c=>companySnapshotData_(c.id))}}
 function ownerCreateCompany_(p){
   const owner=ownerSession_(p.ownerToken);required_(p,['name']);const now=iso_(),companyId=id_('company'),email=p.adminEmail?normalizeEmail_(p.adminEmail):'',country=String(p.country||'PL').toUpperCase(),taxId=p.taxId?normalizeTaxId_(p.taxId,country):'';
-  if(taxId&&rows_(SHEETS.COMPANIES).some(x=>x.country===country&&String(x.taxId)===taxId))throw apiError_('COMPANY_EXISTS','Firma o tym identyfikatorze już istnieje.');
+  if(taxId&&rows_(SHEETS.COMPANIES).some(x=>x.country===country&&String(x.taxId)===taxId))throw apiError_('COMPANY_EXISTS','Firma o tym identyfikatorze juĹĽ istnieje.');
   append_(SHEETS.COMPANIES,{id:companyId,name:String(p.name).trim(),country:country,taxId:taxId,adminEmail:email,status:'active',createdAt:now,updatedAt:now});append_(SHEETS.LICENSES,{companyId:companyId,status:'trial_pending',trialDays:Math.max(1,Number(p.trialDays)||14),trialStartedAt:'',trialEndsAt:'',paidEndsAt:'',blocked:false,adminDeviceLimit:3,driverLimit:10,driverDeviceLimit:10,monthlyPrice:p.monthlyPrice===''?'':Number(p.monthlyPrice)||'',currency:String(p.currency||'PLN').toUpperCase(),statusBeforeBlock:'',updatedAt:now});history_(companyId,'company_created_by_owner',{owner:owner.email});return {ok:true,company:companySnapshotData_(companyId)};
 }
 function ownerUpdateCompany_(p){ownerSession_(p.ownerToken);required_(p,['companyId','name']);const email=p.adminEmail?normalizeEmail_(p.adminEmail):'';updateOne_(SHEETS.COMPANIES,x=>x.id===p.companyId,{name:String(p.name).trim(),adminEmail:email,updatedAt:iso_()});const admin=findOne_(SHEETS.ADMINS,x=>x.companyId===p.companyId);if(admin&&email)updateOne_(SHEETS.ADMINS,x=>x.id===admin.id,{email:email});history_(p.companyId,'company_updated_by_owner',{});return {ok:true,company:companySnapshotData_(p.companyId)}}
@@ -234,18 +237,18 @@ function parseJson_(value,fallback){try{return JSON.parse(String(value||''))}cat
 function publicLicense_(companyId){const l=findOne_(SHEETS.LICENSES,x=>x.companyId===companyId);if(!l)throw apiError_('LICENSE_NOT_FOUND','Brak licencji.');return {status:effectiveLicenseStatus_(l),trialDays:Number(l.trialDays),trialStartedAt:l.trialStartedAt||null,trialEndsAt:l.trialEndsAt||null,paidEndsAt:l.paidEndsAt||null,blocked:String(l.blocked)==='true',monthlyPrice:l.monthlyPrice===''?null:Number(l.monthlyPrice),currency:String(l.currency||'PLN').toUpperCase(),limits:{adminDevices:Number(l.adminDeviceLimit),drivers:Number(l.driverLimit),driverDevices:Number(l.driverDeviceLimit)}}}
 
 function createCode_(companyId,channel,target){const code=String(Math.floor(100000+Math.random()*900000)),pepper=secret_('OTP_PEPPER');append_(SHEETS.VERIFICATIONS,{id:id_('verify'),companyId,channel,target,codeHash:hash_(pepper+code),expiresAt:new Date(Date.now()+10*60000).toISOString(),attempts:0,usedAt:'',createdAt:iso_()});return code}
-function consumeCode_(companyId,channel,code){const all=rows_(SHEETS.VERIFICATIONS),record=[...all].reverse().find(x=>x.companyId===companyId&&x.channel===channel&&!x.usedAt);if(!record||new Date(record.expiresAt)<new Date())throw apiError_('CODE_EXPIRED','Kod wygasł.');if(Number(record.attempts)>=5)throw apiError_('CODE_LOCKED','Przekroczono liczbę prób.');if(!constantEqual_(record.codeHash,hash_(secret_('OTP_PEPPER')+String(code)))){updateOne_(SHEETS.VERIFICATIONS,x=>x.id===record.id,{attempts:Number(record.attempts)+1});throw apiError_('INVALID_CODE','Nieprawidłowy kod.')}updateOne_(SHEETS.VERIFICATIONS,x=>x.id===record.id,{usedAt:iso_()})}
-function sendEmailCode_(email,code){MailApp.sendEmail({to:email,subject:'Kursy — kod potwierdzający',htmlBody:'Twój kod potwierdzający: <b>'+code+'</b><br>Kod jest ważny 10 minut.'})}
+function consumeCode_(companyId,channel,code){const all=rows_(SHEETS.VERIFICATIONS),record=[...all].reverse().find(x=>x.companyId===companyId&&x.channel===channel&&!x.usedAt);if(!record||new Date(record.expiresAt)<new Date())throw apiError_('CODE_EXPIRED','Kod wygasĹ‚.');if(Number(record.attempts)>=5)throw apiError_('CODE_LOCKED','Przekroczono liczbÄ™ prĂłb.');if(!constantEqual_(record.codeHash,hash_(secret_('OTP_PEPPER')+String(code)))){updateOne_(SHEETS.VERIFICATIONS,x=>x.id===record.id,{attempts:Number(record.attempts)+1});throw apiError_('INVALID_CODE','NieprawidĹ‚owy kod.')}updateOne_(SHEETS.VERIFICATIONS,x=>x.id===record.id,{usedAt:iso_()})}
+function sendEmailCode_(email,code){MailApp.sendEmail({to:email,subject:'Kursy â€” kod potwierdzajÄ…cy',htmlBody:'TwĂłj kod potwierdzajÄ…cy: <b>'+code+'</b><br>Kod jest waĹĽny 10 minut.'})}
 function createSession_(companyId,adminId){const token=randomToken_(),now=new Date(),expires=new Date(+now+24*60*60*1000).toISOString();append_(SHEETS.SESSIONS,{tokenHash:hash_(token),companyId,adminId,expiresAt:expires,revokedAt:'',createdAt:now.toISOString()});return {token,companyId,expiresAt:expires}}
-function session_(token){if(!token)throw apiError_('UNAUTHORIZED','Zaloguj się.');const s=findOne_(SHEETS.SESSIONS,x=>constantEqual_(x.tokenHash,hash_(token))&&!x.revokedAt);if(!s||new Date(s.expiresAt)<new Date())throw apiError_('SESSION_EXPIRED','Sesja wygasła.');return s}
-function rateLimit_(action,payload={}){const cache=CacheService.getScriptCache(),actor=payload.ownerToken||payload.sessionToken||payload.driverSessionToken||payload.email||payload.companyId||payload.activationToken||'anonymous',bucket=Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyyMMddHHmm'),key='rate:'+action+':'+hash_(actor).slice(0,20)+':'+bucket,limit=['login','ownerLogin','verifyEmail','registerCompany'].includes(action)?30:120,count=Number(cache.get(key)||0)+1;if(count>limit)throw apiError_('RATE_LIMIT','Zbyt wiele żądań. Spróbuj za chwilę.');cache.put(key,String(count),70)}
+function session_(token){if(!token)throw apiError_('UNAUTHORIZED','Zaloguj siÄ™.');const s=findOne_(SHEETS.SESSIONS,x=>constantEqual_(x.tokenHash,hash_(token))&&!x.revokedAt);if(!s||new Date(s.expiresAt)<new Date())throw apiError_('SESSION_EXPIRED','Sesja wygasĹ‚a.');return s}
+function rateLimit_(action,payload={}){const cache=CacheService.getScriptCache(),actor=payload.ownerToken||payload.sessionToken||payload.driverSessionToken||payload.email||payload.companyId||payload.activationToken||'anonymous',bucket=Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyyMMddHHmm'),key='rate:'+action+':'+hash_(actor).slice(0,20)+':'+bucket,limit=['login','ownerLogin','verifyEmail','registerCompany'].includes(action)?30:120,count=Number(cache.get(key)||0)+1;if(count>limit)throw apiError_('RATE_LIMIT','Zbyt wiele ĹĽÄ…daĹ„. SprĂłbuj za chwilÄ™.');cache.put(key,String(count),70)}
 function history_(companyId,type,details){append_(SHEETS.HISTORY,{id:id_('history'),companyId,type,detailsJson:JSON.stringify(details||{}),createdAt:iso_()})}
 function sheet_(name){const ss=SpreadsheetApp.openById(secret_('SPREADSHEET_ID'));let sh=ss.getSheetByName(name);if(!sh)sh=ss.insertSheet(name);const headers=HEADERS[name];if(sh.getLastRow()===0)sh.appendRow(headers);else{const existing=sh.getRange(1,1,1,Math.max(1,sh.getLastColumn())).getValues()[0];headers.forEach(h=>{if(!existing.includes(h)){sh.getRange(1,sh.getLastColumn()+1).setValue(h);existing.push(h)}})}return sh}
 function rows_(name){const sh=sheet_(name),values=sh.getDataRange().getValues(),headers=values.shift()||HEADERS[name];return values.filter(r=>r.some(v=>v!=='' )).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]])))}
 function append_(name,obj){const h=HEADERS[name];sheet_(name).appendRow(h.map(k=>safeCell_(obj[k]===undefined?'':obj[k])))}
 function findOne_(name,predicate){return rows_(name).find(predicate)}
 function updateOne_(name,predicate,patch){const sh=sheet_(name),values=sh.getDataRange().getValues(),headers=values[0];for(let i=1;i<values.length;i++){const obj=Object.fromEntries(headers.map((h,j)=>[h,values[i][j]]));if(predicate(obj)){Object.entries(patch).forEach(([k,v])=>{const col=headers.indexOf(k);if(col>=0)sh.getRange(i+1,col+1).setValue(safeCell_(v))});return}}throw apiError_('ROW_NOT_FOUND','Nie znaleziono danych.')}
-function required_(obj,keys){keys.forEach(k=>{if(obj[k]===undefined||obj[k]===null||String(obj[k]).trim()==='')throw apiError_('VALIDATION_ERROR','Uzupełnij wymagane pola.')})}
+function required_(obj,keys){keys.forEach(k=>{if(obj[k]===undefined||obj[k]===null||String(obj[k]).trim()==='')throw apiError_('VALIDATION_ERROR','UzupeĹ‚nij wymagane pola.')})}
 function normalizeEmail_(v){return String(v).trim().toLowerCase()}
 function normalizePhone_(v,country){let raw=String(v).replace(/[^\d+]/g,'');if(country==='PL'){let d=raw.replace(/\D/g,'').replace(/^0048/,'');if(d.length===11&&d.startsWith('48'))d=d.slice(2);return d.length===9?'+48'+d:raw}return raw.startsWith('+')?raw:'+'+raw.replace(/\D/g,'')}
 function normalizeTaxId_(v,country){let x=String(v).toUpperCase().replace(/[\s.-]/g,'');return country==='PL'?x.replace(/^PL/,''):x}
@@ -255,7 +258,7 @@ function hash_(v){return Utilities.base64EncodeWebSafe(Utilities.computeDigest(U
 function passwordHash_(salt,password){const pepper=PropertiesService.getScriptProperties().getProperty('PASSWORD_PEPPER')||'';return hash_(pepper+String(salt)+String(password))}
 function validPassword_(admin,password){const modern=passwordHash_(admin.passwordSalt,password);if(constantEqual_(admin.passwordHash,modern))return true;const legacy=hash_(admin.passwordSalt+String(password));if(!constantEqual_(admin.passwordHash,legacy))return false;updateOne_(SHEETS.ADMINS,x=>x.id===admin.id,{passwordHash:modern});return true}
 function loginAttemptKey_(email){return 'company-login:'+hash_(email).slice(0,24)}
-function assertLoginAllowed_(email){if(Number(CacheService.getScriptCache().get(loginAttemptKey_(email))||0)>=5)throw apiError_('LOGIN_LOCKED','Zbyt wiele nieudanych prób. Spróbuj ponownie za 15 minut.')}
+function assertLoginAllowed_(email){if(Number(CacheService.getScriptCache().get(loginAttemptKey_(email))||0)>=5)throw apiError_('LOGIN_LOCKED','Zbyt wiele nieudanych prĂłb. SprĂłbuj ponownie za 15 minut.')}
 function recordLoginFailure_(email){const cache=CacheService.getScriptCache(),key=loginAttemptKey_(email),count=Number(cache.get(key)||0)+1;cache.put(key,String(count),900)}
 function clearLoginFailures_(email){CacheService.getScriptCache().remove(loginAttemptKey_(email))}
 function safeCell_(value){return typeof value==='string'&&/^[=+\-@]/.test(value)?"'"+value:value}
@@ -267,3 +270,4 @@ function mask_(v){return String(v).slice(0,3)+'***'+String(v).slice(-3)}
 function secret_(name){const value=PropertiesService.getScriptProperties().getProperty(name);if(!value)throw apiError_('CONFIGURATION_ERROR','Brak konfiguracji serwera: '+name);return value}
 function apiError_(code,message){const e=new Error(code);e.code=code;e.publicMessage=message;return e}
 function json_(obj){return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON)}
+
