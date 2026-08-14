@@ -16,6 +16,8 @@ export const licenseCloudApi={
   addDriver:async driver=>{await ensureAdminDevice();return requestApi('addDriver',{...companyAuth(),...driver})},
   createDriverActivation:async driverId=>{await ensureAdminDevice();return requestApi('createDriverActivation',{...companyAuth(),driverId})},
   setDriverBlocked:async(driverId,blocked)=>{await ensureAdminDevice();return requestApi('setDriverBlocked',{...companyAuth(),driverId,blocked})},
+  releaseDriverDevices:async driverId=>{await ensureAdminDevice();return requestApi('releaseDriverDevices',{...companyAuth(),driverId})},
+  deleteDriver:async driverId=>{await ensureAdminDevice();return requestApi('deleteDriver',{...companyAuth(),driverId})},
   releaseDevice:async(role,targetDeviceId)=>{await ensureAdminDevice();const auth=companyAuth();return requestApi('releaseDevice',{sessionToken:auth.sessionToken,actorDeviceId:auth.deviceId,targetDeviceId,role})},
   driverStatus:(activationToken,identity)=>requestApi('driverStatus',{activationToken,...identity}),
   activateDriverDevice:(activationToken,identity)=>requestApi('activateDriverDevice',{activationToken,...identity}),

@@ -34,7 +34,7 @@ function fixture(){
     UrlFetchApp:{fetch(){throw new Error('external fetch disabled in tests')}}
   };
   const names=Object.keys(mocks);
-  const api=new Function(...names,source+`;return {setup,setOwnerCredentials,ownerLogin_,ownerCreateCompany_,ownerUpdateCompany_,ownerUpdateLicense_,ownerExtendTrial_,ownerEndTrial_,ownerGrantPaid_,ownerSetBlocked_,ownerSnapshot_,activateAdminDevice_,addDriver_,createDriverActivation_,setDriverBlocked_,activateDriverDevice_,driverStatus_,releaseDevice_,saveRoutes_,loadRoutes_,append_,updateOne_,createSession_,publicLicense_};`)(...Object.values(mocks));
+  const api=new Function(...names,source+`;return {setup,setOwnerCredentials,ownerLogin_,ownerCreateCompany_,ownerUpdateCompany_,ownerUpdateLicense_,ownerExtendTrial_,ownerEndTrial_,ownerGrantPaid_,ownerSetBlocked_,ownerSnapshot_,activateAdminDevice_,addDriver_,createDriverActivation_,setDriverBlocked_,releaseDriverDevices_,deleteDriver_,activateDriverDevice_,driverStatus_,releaseDevice_,saveRoutes_,loadRoutes_,append_,updateOne_,createSession_,publicLicense_};`)(...Object.values(mocks));
   api.setup();api.setOwnerCredentials('owner@example.com','bardzo-dlugie-haslo');const ownerToken=api.ownerLogin_({email:'owner@example.com',password:'bardzo-dlugie-haslo'}).session.token;
   function company(overrides={}){return api.ownerCreateCompany_({ownerToken,name:'Firma Testowa',trialDays:14,...overrides}).company}
   function admin(companyId){api.append_('Admins',{id:'admin_'+companyId,companyId,name:'Admin',email:companyId+'@example.com',phone:'+48111222333',passwordHash:'x',passwordSalt:'x',emailVerifiedAt:new Date().toISOString(),phoneVerifiedAt:new Date().toISOString(),createdAt:new Date().toISOString()});return api.createSession_(companyId,'admin_'+companyId).token}
@@ -65,4 +65,11 @@ test('wygaśnięcie, przedłużenie triala i przejście na płatną licencję',(
 });
 test('blokada firmy działa natychmiast, odblokowanie przywraca poprzedni status',()=>{
   const f=fixture(),c=f.company();assert.equal(f.api.ownerSetBlocked_({ownerToken:f.ownerToken,companyId:c.id,blocked:true}).company.license.status,'blocked');assert.equal(f.api.ownerSetBlocked_({ownerToken:f.ownerToken,companyId:c.id,blocked:false}).company.license.status,'trial_pending');
+});
+
+test('zwolnienie wszystkich urządzeń kierowcy nie usuwa kierowcy',()=>{
+  const f=fixture(),c=f.company(),sessionToken=f.admin(c.id),identity={sessionToken,deviceId:'admin',fingerprint:'fp'};f.api.activateAdminDevice_(identity);const d=f.api.addDriver_({...identity,name:'Jan',phone:'500600700'}).driver,token=f.api.createDriverActivation_({...identity,driverId:d.id}).activationToken;f.api.activateDriverDevice_({activationToken:token,deviceId:'phone-1',fingerprint:'a'});const result=f.api.releaseDriverDevices_({...identity,driverId:d.id});assert.equal(result.releasedCount,1);assert.equal(result.company.drivers.length,1);assert.equal(result.company.driverDevices.length,0);
+});
+test('usunięcie kierowcy zwalnia urządzenia, unieważnia link i zachowuje historię triala',()=>{
+  const f=fixture(),c=f.company(),sessionToken=f.admin(c.id),identity={sessionToken,deviceId:'admin',fingerprint:'fp'};f.api.activateAdminDevice_(identity);f.api.ownerUpdateLicense_({ownerToken:f.ownerToken,companyId:c.id,trialDays:14,adminDeviceLimit:3,driverLimit:1,driverDeviceLimit:1,currency:'PLN',monthlyPrice:''});const d=f.api.addDriver_({...identity,name:'Jan',phone:'500600700'}).driver,token=f.api.createDriverActivation_({...identity,driverId:d.id}).activationToken;const active=f.api.activateDriverDevice_({activationToken:token,deviceId:'phone-1',fingerprint:'a'}),started=active.license.trialStartedAt;const deleted=f.api.deleteDriver_({...identity,driverId:d.id});assert.equal(deleted.company.drivers.length,0);assert.equal(deleted.company.driverDevices.length,0);code('INVALID_ACTIVATION',()=>f.api.driverStatus_({activationToken:token,deviceId:'phone-1'}));assert.equal(f.api.publicLicense_(c.id).trialStartedAt,started);assert.doesNotThrow(()=>f.api.addDriver_({...identity,name:'Anna',phone:'500600701'}));
 });

@@ -8,7 +8,7 @@ const HEADERS={
   LicenseHistory:['id','companyId','type','detailsJson','createdAt'],
   Payments:['id','companyId','provider','plan','checkoutSessionId','status','amount','currency','paidAt','createdAt','updatedAt'],
   Routes:['companyId','version','routesJson','updatedAt','updatedBy'],
-  Drivers:['id','companyId','name','phone','email','status','activationTokenHash','activatedAt','createdAt','updatedAt'],
+  Drivers:['id','companyId','name','phone','email','status','activationTokenHash','activatedAt','deletedAt','createdAt','updatedAt'],
   Devices:['id','companyId','userId','role','deviceId','fingerprintHash','activatedAt','lastSeenAt','releasedAt'],
   OwnerSessions:['tokenHash','email','expiresAt','createdAt']
 };
@@ -18,7 +18,7 @@ function doPost(e){
   try{
     const body=JSON.parse(e.postData&&e.postData.contents||'{}');
     rateLimit_(body.action||'unknown');
-    const actions={registerCompany:registerCompany_,verifyEmail:verifyEmail_,verifyPhone:verifyPhone_,login:login_,createCheckout:createCheckout_,confirmCheckout:confirmCheckout_,licenseStatus:licenseStatus_,loadRoutes:loadRoutes_,saveRoutes:saveRoutes_,companySnapshot:companySnapshot_,activateAdminDevice:activateAdminDevice_,addDriver:addDriver_,createDriverActivation:createDriverActivation_,setDriverBlocked:setDriverBlocked_,releaseDevice:releaseDevice_,driverStatus:driverStatus_,activateDriverDevice:activateDriverDevice_,driverRoutes:driverRoutes_,ownerLogin:ownerLogin_,ownerSnapshot:ownerSnapshot_,ownerCreateCompany:ownerCreateCompany_,ownerUpdateCompany:ownerUpdateCompany_,ownerUpdateLicense:ownerUpdateLicense_,ownerExtendTrial:ownerExtendTrial_,ownerEndTrial:ownerEndTrial_,ownerGrantPaid:ownerGrantPaid_,ownerSetBlocked:ownerSetBlocked_};
+    const actions={registerCompany:registerCompany_,verifyEmail:verifyEmail_,verifyPhone:verifyPhone_,login:login_,createCheckout:createCheckout_,confirmCheckout:confirmCheckout_,licenseStatus:licenseStatus_,loadRoutes:loadRoutes_,saveRoutes:saveRoutes_,companySnapshot:companySnapshot_,activateAdminDevice:activateAdminDevice_,addDriver:addDriver_,createDriverActivation:createDriverActivation_,setDriverBlocked:setDriverBlocked_,releaseDriverDevices:releaseDriverDevices_,deleteDriver:deleteDriver_,releaseDevice:releaseDevice_,driverStatus:driverStatus_,activateDriverDevice:activateDriverDevice_,driverRoutes:driverRoutes_,ownerLogin:ownerLogin_,ownerSnapshot:ownerSnapshot_,ownerCreateCompany:ownerCreateCompany_,ownerUpdateCompany:ownerUpdateCompany_,ownerUpdateLicense:ownerUpdateLicense_,ownerExtendTrial:ownerExtendTrial_,ownerEndTrial:ownerEndTrial_,ownerGrantPaid:ownerGrantPaid_,ownerSetBlocked:ownerSetBlocked_};
     if(!actions[body.action])throw apiError_('UNKNOWN_ACTION','Nieobsługiwana operacja.');
     return json_(actions[body.action](body.payload||{}));
   }catch(error){return json_({ok:false,code:error.code||'SERVER_ERROR',message:error.publicMessage||'Operacja nie powiodła się.'})}
@@ -132,7 +132,7 @@ function assertRouteWriteAllowed_(companyId){
 function companySnapshot_(p){const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);return {ok:true,company:companySnapshotData_(auth.companyId)}}
 function companySnapshotData_(companyId){
   const c=findOne_(SHEETS.COMPANIES,x=>x.id===companyId);if(!c)throw apiError_('COMPANY_NOT_FOUND','Nie znaleziono firmy.');
-  const drivers=rows_(SHEETS.DRIVERS).filter(x=>x.companyId===companyId).map(publicDriver_);
+  const drivers=rows_(SHEETS.DRIVERS).filter(x=>x.companyId===companyId&&!x.deletedAt).map(publicDriver_);
   const devices=activeDevices_(companyId).map(publicDevice_);
   const history=rows_(SHEETS.HISTORY).filter(x=>x.companyId===companyId).slice(-100);
   return {id:c.id,name:c.name,country:c.country,taxId:c.taxId,adminEmail:c.adminEmail||'',status:c.status,license:publicLicense_(companyId),drivers:drivers,adminDevices:devices.filter(x=>x.role==='admin'),driverDevices:devices.filter(x=>x.role==='driver'),history:history.map(x=>({id:x.id,type:x.type,details:parseJson_(x.detailsJson,{}),at:x.createdAt}))};
@@ -160,6 +160,12 @@ function addDriver_(p){
 function setDriverBlocked_(p){
   const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);required_(p,['driverId']);const driver=findOne_(SHEETS.DRIVERS,x=>x.id===p.driverId&&x.companyId===auth.companyId);if(!driver)throw apiError_('DRIVER_NOT_FOUND','Nie znaleziono kierowcy.');const blocked=Boolean(p.blocked),status=blocked?'blocked':(driver.activatedAt?'active':'inactive');updateOne_(SHEETS.DRIVERS,x=>x.id===driver.id,{status:status,updatedAt:iso_()});history_(auth.companyId,blocked?'driver_blocked':'driver_unblocked',{driverId:driver.id});return {ok:true,company:companySnapshotData_(auth.companyId)};
 }
+function releaseDriverDevices_(p){
+  const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);required_(p,['driverId']);const driver=findOne_(SHEETS.DRIVERS,x=>x.id===p.driverId&&x.companyId===auth.companyId&&!x.deletedAt);if(!driver)throw apiError_('DRIVER_NOT_FOUND','Nie znaleziono kierowcy.');const now=iso_(),devices=activeDevices_(auth.companyId).filter(x=>x.role==='driver'&&x.userId===driver.id);devices.forEach(device=>updateOne_(SHEETS.DEVICES,x=>x.id===device.id,{releasedAt:now}));history_(auth.companyId,'driver_devices_released',{driverId:driver.id,count:devices.length});return {ok:true,releasedCount:devices.length,company:companySnapshotData_(auth.companyId)};
+}
+function deleteDriver_(p){
+  const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);required_(p,['driverId']);const driver=findOne_(SHEETS.DRIVERS,x=>x.id===p.driverId&&x.companyId===auth.companyId&&!x.deletedAt);if(!driver)throw apiError_('DRIVER_NOT_FOUND','Nie znaleziono kierowcy.');const now=iso_(),devices=activeDevices_(auth.companyId).filter(x=>x.role==='driver'&&x.userId===driver.id);devices.forEach(device=>updateOne_(SHEETS.DEVICES,x=>x.id===device.id,{releasedAt:now}));updateOne_(SHEETS.DRIVERS,x=>x.id===driver.id,{status:'deleted',activationTokenHash:'',deletedAt:now,updatedAt:now});history_(auth.companyId,'driver_deleted',{driverId:driver.id,releasedDeviceCount:devices.length});return {ok:true,company:companySnapshotData_(auth.companyId)};
+}
 function createDriverActivation_(p){
   const auth=session_(p.sessionToken);assertAdminDevice_(auth,p);required_(p,['driverId']);const driver=findOne_(SHEETS.DRIVERS,x=>x.id===p.driverId&&x.companyId===auth.companyId);if(!driver)throw apiError_('DRIVER_NOT_FOUND','Nie znaleziono kierowcy.');
   const token=randomToken_();updateOne_(SHEETS.DRIVERS,x=>x.id===driver.id,{activationTokenHash:hash_(token),updatedAt:iso_()});history_(auth.companyId,'driver_activation_link_created',{driverId:driver.id});return {ok:true,activationToken:token};
@@ -168,7 +174,7 @@ function releaseDevice_(p){
   const auth=session_(p.sessionToken);required_(p,['actorDeviceId','targetDeviceId','role']);assertAdminDevice_(auth,{deviceId:p.actorDeviceId});const device=findOne_(SHEETS.DEVICES,x=>x.companyId===auth.companyId&&x.deviceId===String(p.targetDeviceId)&&x.role===String(p.role)&&!x.releasedAt);if(!device)throw apiError_('DEVICE_NOT_FOUND','Nie znaleziono aktywnego urządzenia.');
   updateOne_(SHEETS.DEVICES,x=>x.id===device.id,{releasedAt:iso_()});history_(auth.companyId,'device_released',{role:device.role,deviceId:device.deviceId});return {ok:true,company:companySnapshotData_(auth.companyId)};
 }
-function driverByToken_(token){if(!token)throw apiError_('INVALID_ACTIVATION','Nieprawidłowy link aktywacyjny.');const tokenHash=hash_(String(token)),driver=findOne_(SHEETS.DRIVERS,x=>constantEqual_(x.activationTokenHash,tokenHash));if(!driver)throw apiError_('INVALID_ACTIVATION','Nieprawidłowy lub nieaktualny link aktywacyjny.');return driver}
+function driverByToken_(token){if(!token)throw apiError_('INVALID_ACTIVATION','Nieprawidłowy link aktywacyjny.');const tokenHash=hash_(String(token)),driver=findOne_(SHEETS.DRIVERS,x=>!x.deletedAt&&constantEqual_(x.activationTokenHash,tokenHash));if(!driver)throw apiError_('INVALID_ACTIVATION','Nieprawidłowy lub nieaktualny link aktywacyjny.');return driver}
 function driverStatus_(p){
   const driver=driverByToken_(p.activationToken),license=publicLicense_(driver.companyId),company=findOne_(SHEETS.COMPANIES,x=>x.id===driver.companyId),device=String(p.deviceId||''),active=activeDevices_(driver.companyId).some(x=>x.role==='driver'&&x.userId===driver.id&&x.deviceId===device);
   return {ok:true,driver:publicDriver_(driver),company:{id:company.id,name:company.name},license:license,activeDevice:active,mayUse:['trial_active','active'].includes(license.status)&&driver.status==='active'&&active};
