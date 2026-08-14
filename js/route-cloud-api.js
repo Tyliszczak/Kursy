@@ -3,7 +3,7 @@ import {loadCompanySession,requestApi} from './registration-api.js';
 function sessionToken(){
   const token=loadCompanySession()?.token;
   if(!token){
-    const error=new Error('Sesja wygasĹ‚a. Zaloguj siÄ™ ponownie.');
+    const error=new Error('Sesja wygasła. Zaloguj się ponownie.');
     error.code='UNAUTHORIZED';
     throw error;
   }

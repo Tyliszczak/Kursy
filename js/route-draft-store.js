@@ -48,7 +48,7 @@ export async function getRetention(){
 
 export async function setRetention(value){
   const normalized=value==='manual'?'manual':Number(value);
-  if(!RETENTION_OPTIONS.includes(normalized))throw new Error('NieprawidĹ‚owy okres przechowywania kopii.');
+  if(!RETENTION_OPTIONS.includes(normalized))throw new Error('Nieprawidłowy okres przechowywania kopii.');
   const db=await openDb();
   await transaction(db,SETTINGS,'readwrite',store=>store.put({key:'retention',value:normalized}));
   db.close();
@@ -86,7 +86,7 @@ export async function listSnapshots(companyId){
 export async function deleteSnapshot(id){
   const db=await openDb();
   const row=await transaction(db,STORE,'readonly',store=>store.get(id));
-  if(row?.kind==='working'){db.close();throw new Error('BieĹĽÄ…cej niezapisanej kopii nie moĹĽna usunÄ…Ä‡ automatycznie.');}
+  if(row?.kind==='working'){db.close();throw new Error('Bieżącej niezapisanej kopii nie można usunąć automatycznie.');}
   await transaction(db,STORE,'readwrite',store=>store.delete(id));
   db.close();
 }
