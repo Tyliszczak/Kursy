@@ -11,9 +11,10 @@ function ownerToken(){const token=loadOwnerSession()?.token;if(!token){const err
 export function clearOwnerSession(){sessionStorage.removeItem(OWNER_SESSION_KEY)}
 export async function ownerLogout(){const session=loadOwnerSession();try{if(session?.token)await requestApi('ownerLogout',{ownerToken:session.token})}finally{clearOwnerSession()}}
 export async function ownerLogin(email,password){const result=await requestApi('ownerLogin',{email,password});sessionStorage.setItem(OWNER_SESSION_KEY,JSON.stringify(result.session));return result.session}
-export function loadDriverSession(){try{const value=JSON.parse(localStorage.getItem(DRIVER_SESSION_KEY)||'null');return value&&new Date(value.expiresAt)>new Date()?value:null}catch{return null}}
+export function loadDriverSession(){try{const value=JSON.parse(localStorage.getItem(DRIVER_SESSION_KEY)||'null');if(!value)return null;const refreshExpiry=value.refreshExpiresAt||value.expiresAt;if(new Date(refreshExpiry)<=new Date()){clearDriverSession();return null}return value}catch{return null}}
 export function clearDriverSession(){localStorage.removeItem(DRIVER_SESSION_KEY)}
 function saveDriverSession(session){if(session)localStorage.setItem(DRIVER_SESSION_KEY,JSON.stringify(session));return session}
+export async function ensureDriverSession(identity,optional=false){const current=loadDriverSession();if(!current)return null;if(current.token&&new Date(current.expiresAt)>new Date())return current;if(!current.refreshToken){clearDriverSession();return null}try{const result=await requestApi('refreshDriverSession',{refreshToken:current.refreshToken,...identity});return saveDriverSession(result.driverSession)}catch(error){clearDriverSession();if(optional)return null;throw error}}
 export const licenseCloudApi={
   endpoint:()=>apiUrl(),
   companySnapshot:async()=>{await ensureAdminDevice();return requestApi('companySnapshot',companyAuth())},
@@ -24,9 +25,10 @@ export const licenseCloudApi={
   releaseDriverDevices:async driverId=>{await ensureAdminDevice();return requestApi('releaseDriverDevices',{...companyAuth(),driverId})},
   deleteDriver:async driverId=>{await ensureAdminDevice();return requestApi('deleteDriver',{...companyAuth(),driverId})},
   releaseDevice:async(role,targetDeviceId)=>{await ensureAdminDevice();const auth=companyAuth();return requestApi('releaseDevice',{sessionToken:auth.sessionToken,actorDeviceId:auth.deviceId,targetDeviceId,role})},
-  driverStatus:(activationToken,identity)=>requestApi('driverStatus',{activationToken,driverSessionToken:loadDriverSession()?.token,...identity}),
+  driverStatus:async(activationToken,identity)=>{const session=await ensureDriverSession(identity,true);return requestApi('driverStatus',{activationToken:session?'':activationToken,driverSessionToken:session?.token||'',...identity})},
   activateDriverDevice:async(activationToken,identity)=>{const result=await requestApi('activateDriverDevice',{activationToken,...identity});saveDriverSession(result.driverSession);return result},
-  driverRoutes:identity=>requestApi('driverRoutes',{driverSessionToken:loadDriverSession()?.token,...identity}),
+  driverRoutes:async identity=>{const session=await ensureDriverSession(identity);if(!session){const error=new Error('Sesja kierowcy wygasła. Poproś administratora firmy o nowy link.');error.code='DRIVER_REFRESH_EXPIRED';throw error}return requestApi('driverRoutes',{driverSessionToken:session.token,...identity})},
+  driverVehicles:async identity=>{const session=await ensureDriverSession(identity);if(!session){const error=new Error('Sesja kierowcy wygasła. Poproś administratora firmy o nowy link.');error.code='DRIVER_REFRESH_EXPIRED';throw error}return requestApi('driverVehicles',{driverSessionToken:session.token,...identity})},
   ownerSnapshot:()=>requestApi('ownerSnapshot',{ownerToken:ownerToken()}),
   ownerCreateCompany:data=>requestApi('ownerCreateCompany',{ownerToken:ownerToken(),...data}),
   ownerUpdateCompany:data=>requestApi('ownerUpdateCompany',{ownerToken:ownerToken(),...data}),

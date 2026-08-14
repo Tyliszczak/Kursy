@@ -18,6 +18,10 @@ test('link kierowcy jest jednorazowy, wygasa i jest wymieniany na sesję urządz
   assert.match(backend,/activationTokenHash:''/);
   assert.match(backend,/createDriverSession_/);
   assert.match(backend,/revokeDriverSessions_/);
+  assert.match(backend,/refreshDriverSession_/);
+  assert.match(backend,/refreshTokenHash/);
+  assert.match(backend,/absoluteExpiresAt/);
+  assert.match(driverApi,/ensureDriverSession/);
   assert.match(driverApi,/saveDriverSession/);
   assert.match(driverGate,/history\.replaceState/);
   assert.doesNotMatch(driverApp,/driverRoutes\(DRIVER_CONTEXT\.activationToken/);
@@ -25,8 +29,8 @@ test('link kierowcy jest jednorazowy, wygasa i jest wymieniany na sesję urządz
 
 test('token kierowcy nie jest wysyłany w adresie GET',()=>{
   assert.doesNotMatch(vehicles,/activationToken=.*encodeURIComponent|companyId=.*driverId=/);
-  assert.match(vehicles,/method:'POST'/);
-  assert.match(vehicles,/driverSessionToken/);
+  assert.match(vehicles,/licenseCloudApi\.driverVehicles/);
+  assert.doesNotMatch(vehicles,/fetch\(API_URL/);
 });
 
 test('potwierdzenie Stripe jest przypisane do sesji firmy i idempotentne',()=>{

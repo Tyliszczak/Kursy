@@ -15,7 +15,7 @@ async function start(){
   if(['blocked','expired'].includes(status.license.status)){deny(t('driver.accessLicense',{status:t(`status.${status.license.status}`)}));return}
   if(!status.mayUse){deny(t('driver.accessActivation'),{allowActivation:true});return}
   localStorage.removeItem(TOKEN_KEY);history.replaceState({},'',location.pathname);
-  globalThis.KURSY_DRIVER_CONTEXT=Object.freeze({companyId:status.company.id,driverId:status.driver.id,driverSessionToken:loadDriverSession()?.token||'',deviceId:identity.deviceId,fingerprint:identity.fingerprint,dataApiUrl:licenseCloudApi.endpoint()});
+  globalThis.KURSY_DRIVER_CONTEXT=Object.freeze({companyId:status.company.id,driverId:status.driver.id,deviceId:identity.deviceId,fingerprint:identity.fingerprint,dataApiUrl:licenseCloudApi.endpoint()});
   gate.hidden=true;shell.hidden=false;await import('./app.js?v=cloud-1');await loadScript('./wake-style.js?v=cloud-1');await loadScript('./vehicles.js?v=cloud-1');await loadScript('./nav-map.js?v=cloud-1');
 }
 start().catch(error=>{console.error(error);deny(t('driver.accessError'))});

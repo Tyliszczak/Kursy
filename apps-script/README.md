@@ -36,6 +36,7 @@ Arkusze: `Companies`, `Admins`, `Licenses`, `Drivers`, `Devices`, `DriverSession
 - firma rozpoczyna w `trial_pending`;
 - dodanie firmy, tras lub kierowcy nie uruchamia triala;
 - trial uruchamia tylko `activateDriverDevice` pierwszego kierowcy;
+- link aktywacyjny kierowcy jest jednorazowy; sesja dostępowa trwa 24 godziny i odnawia się rotowanym tokenem do 30 dni bezczynności, maksymalnie przez 180 dni od aktywacji;
 - urządzenia zwolnione pozostają w historii;
 - limit administratorów jest sprawdzany serwerowo, domyślnie wynosi 3;
 - panel właściciela może zmienić limity, cenę, walutę, trial, płatną licencję i blokadę;

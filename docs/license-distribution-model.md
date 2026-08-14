@@ -6,13 +6,13 @@ Firma jest właścicielem jedynego triala. Ma niezmienny `companyId`; e-mail adm
 
 - Panel właściciela systemu (`owner.html`) tworzy firmy i zarządza licencjami. Nie jest elementem menu firmy.
 - Panel firmy (`index.html`) zarządza trasami, kierowcami i urządzeniami wyłącznie swojej firmy.
-- Aplikacja kierowcy (`driver.html?token=…`) aktywuje urządzenie kierowcy i docelowo pokazuje jego kursy. Telefon jest głównym identyfikatorem, a e-mail pozostaje opcjonalny.
+- Aplikacja kierowcy (`driver.html?token=…`) jednorazowo aktywuje urządzenie kierowcy, usuwa token z adresu i później korzysta z odnawialnej sesji urządzenia. Telefon jest głównym identyfikatorem, a e-mail pozostaje opcjonalny.
 
 ## Przepływy
 
 1. Właściciel tworzy firmę: `trial_pending`, domyślnie 3 urządzenia administratorów oraz osobne limity kierowców i ich urządzeń.
 2. Administrator może konfigurować firmę, trasy i kierowców; żadna z tych czynności nie startuje triala.
-3. Kierowca otwiera własny link. Serwer docelowy waliduje token, status firmy i limit urządzeń, po czym zapisuje urządzenie atomowo. Pierwsza udana aktywacja ustawia `trialStartedAt` i `trialEndsAt`.
+3. Kierowca otwiera własny link. Backend waliduje token, status firmy i limit urządzeń, po czym zapisuje urządzenie atomowo. Pierwsza udana aktywacja ustawia `trialStartedAt` i `trialEndsAt`. Link jest następnie unieważniany, a aplikacja otrzymuje rotowaną sesję przypisaną do urządzenia.
 4. Kolejne aktywacje nie zmieniają dat triala. Zmiana telefonu/e-maila ani ponowna rejestracja nie tworzy triala, bo wiążą się z istniejącą firmą.
 5. Po wygaśnięciu lub blokadzie dane są zachowane, ale serwer zwraca odmowę działania panelu kierowcy i edycji tras. Właściciel może wydłużyć trial, nadać licencję płatną albo odblokować firmę.
 

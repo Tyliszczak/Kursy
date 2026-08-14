@@ -54,9 +54,8 @@
   async function syncVehicles(){
     if(!API_URL)return false;
     try{
-      const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'driverVehicles',payload:{driverSessionToken:context.driverSessionToken,deviceId:context.deviceId}}),cache:'no-store'});
-      if(!res.ok)throw Error(`HTTP ${res.status}`);
-      const payload=await res.json();
+      const {licenseCloudApi}=await import('../js/license-cloud-api.js');
+      const payload=await licenseCloudApi.driverVehicles({deviceId:context.deviceId,fingerprint:context.fingerprint});
       vehicles=parseVehicles(payload?.data??payload);
       saveCache();
       window.__trasyVehicles=vehicles;
