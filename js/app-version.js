@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='0.12.7';
+  const VERSION='0.12.8';
   globalThis.KURSY_APP_VERSION=VERSION;
   const paint=()=>{const b=document.querySelector('.badge');if(b)b.textContent=`WERSJA TESTOWA ${VERSION}`};
   if(typeof document!=='undefined'){
@@ -18,4 +18,3 @@
     window.addEventListener('load',()=>navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(()=>{}),{once:true});
   }
 })();
-
