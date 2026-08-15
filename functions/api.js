@@ -33,12 +33,30 @@ const cookie=(name,value,maxAge)=>`${name}=${encodeURIComponent(value)}; Path=/;
 const ttl=expiresAt=>Math.max(0,Math.floor((new Date(expiresAt).getTime()-Date.now())/1000));
 const clearCookie=name=>cookie(name,'',0);
 
+function assertConfigured(env){
+  if(!env?.UPSTREAM_API_URL||!env?.APP_ORIGIN||!env?.GATEWAY_SHARED_SECRET){
+    throw Object.assign(new Error('Brama API nie jest skonfigurowana.'),{status:503,code:'GATEWAY_NOT_CONFIGURED'});
+  }
+  let upstream,allowed;
+  try{
+    upstream=new URL(env.UPSTREAM_API_URL);
+    allowed=new URL(env.APP_ORIGIN);
+  }catch{
+    throw Object.assign(new Error('Konfiguracja bramy API jest nieprawidłowa.'),{status:503,code:'GATEWAY_INVALID_CONFIG'});
+  }
+  if(upstream.protocol!=='https:'||allowed.protocol!=='https:'||allowed.origin!==String(env.APP_ORIGIN).replace(/\/$/,'')){
+    throw Object.assign(new Error('Konfiguracja bramy API jest nieprawidłowa.'),{status:503,code:'GATEWAY_INVALID_CONFIG'});
+  }
+  if(new TextEncoder().encode(String(env.GATEWAY_SHARED_SECRET)).length<32){
+    throw Object.assign(new Error('Sekret bramy API jest zbyt krótki.'),{status:503,code:'GATEWAY_WEAK_SECRET'});
+  }
+}
+
 function assertSameOrigin(request,env){
-  const requestOrigin=new URL(request.url).origin;
-  const allowed=String(env.APP_ORIGIN||requestOrigin).replace(/\/$/,'');
+  const allowed=String(env.APP_ORIGIN).replace(/\/$/,'');
   const origin=String(request.headers.get('Origin')||'').replace(/\/$/,'');
   const fetchSite=request.headers.get('Sec-Fetch-Site');
-  if(origin!==allowed||!['same-origin','none',null].includes(fetchSite))throw Object.assign(new Error('Niedozwolone ĹşrĂłdĹ‚o ĹĽÄ…dania.'),{status:403,code:'ORIGIN_REJECTED'});
+  if(origin!==allowed||!['same-origin','none',null].includes(fetchSite))throw Object.assign(new Error('Niedozwolone źródło żądania.'),{status:403,code:'ORIGIN_REJECTED'});
 }
 
 function injectSession(action,payload,cookies){
@@ -73,27 +91,26 @@ function secureResponse(action,data){
 
 export async function onRequestPost({request,env}){
   try{
+    assertConfigured(env);
     assertSameOrigin(request,env);
     const raw=await request.text();
-    if(raw.length>1_000_000)return json({ok:false,code:'REQUEST_TOO_LARGE',message:'Ĺ»Ä…danie jest zbyt duĹĽe.'},413);
+    if(raw.length>1_000_000)return json({ok:false,code:'REQUEST_TOO_LARGE',message:'Żądanie jest zbyt duże.'},413);
     const body=JSON.parse(raw||'{}');
     if(!body.action||typeof body.action!=='string')return json({ok:false,code:'INVALID_ACTION',message:'Brak operacji API.'},400);
-    if(!env.UPSTREAM_API_URL)return json({ok:false,code:'GATEWAY_NOT_CONFIGURED',message:'Brama API nie jest skonfigurowana.'},503);
     const payload=injectSession(body.action,body.payload||{},parseCookies(request));
     const upstream=await fetch(env.UPSTREAM_API_URL,{
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:body.action,payload,gatewaySecret:env.GATEWAY_SHARED_SECRET||''}),
+      body:JSON.stringify({action:body.action,payload,gatewaySecret:env.GATEWAY_SHARED_SECRET}),
       redirect:'follow'
     });
-    const data=await upstream.json().catch(()=>({ok:false,code:'INVALID_UPSTREAM_RESPONSE',message:'Backend zwrĂłciĹ‚ nieprawidĹ‚owÄ… odpowiedĹş.'}));
+    const data=await upstream.json().catch(()=>({ok:false,code:'INVALID_UPSTREAM_RESPONSE',message:'Backend zwrócił nieprawidłową odpowiedź.'}));
     const secured=secureResponse(body.action,data);
     return json(secured.data,upstream.ok?200:502,secured.headers);
   }catch(error){
-    return json({ok:false,code:error.code||'GATEWAY_ERROR',message:error.status?'Ĺ»Ä…danie zostaĹ‚o odrzucone.':'Brama API jest chwilowo niedostÄ™pna.'},error.status||500);
+    return json({ok:false,code:error.code||'GATEWAY_ERROR',message:error.status?'Żądanie zostało odrzucone.':'Brama API jest chwilowo niedostępna.'},error.status||500);
   }
 }
 
-export function onRequestGet(){return json({ok:true,service:'kursy-security-gateway',version:'1.0.0'})}
+export function onRequestGet(){return json({ok:true,service:'kursy-security-gateway',version:'1.1.0'})}
 export function onRequestOptions(){return new Response(null,{status:204,headers:{Allow:'GET, POST, OPTIONS','Cache-Control':'no-store'}})}
-
