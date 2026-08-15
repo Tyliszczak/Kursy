@@ -23,22 +23,24 @@ export function usingSecurityGateway(){return location.protocol==='https:'&&(loc
 export async function requestApi(action,payload={}){
   const endpoint=apiUrl();
   if(!endpoint){
-    const error=new Error('UsĹ‚uga chmurowa nie jest skonfigurowana. Rejestracja i zapis danych sÄ… teraz niedostÄ™pne.');
+    const error=new Error('Usługa chmurowa nie jest skonfigurowana. Rejestracja i zapis danych są teraz niedostępne.');
     error.code='BACKEND_NOT_CONFIGURED';
     throw error;
   }
   let response;
   try{
     const gateway=usingSecurityGateway();
-    response=await fetch(endpoint,{method:'POST',credentials:gateway?'same-origin':'omit',headers:{'Content-Type':gateway?'application/json':'text/plain;charset=utf-8','X-Kursy-Request':'1'},body:JSON.stringify({action,payload})});
+    const headers={'Content-Type':gateway?'application/json':'text/plain;charset=utf-8'};
+    if(gateway)headers['X-Kursy-Request']='1';
+    response=await fetch(endpoint,{method:'POST',credentials:gateway?'same-origin':'omit',headers,body:JSON.stringify({action,payload})});
   }catch{
-    const error=new Error('Nie moĹĽna poĹ‚Ä…czyÄ‡ siÄ™ z usĹ‚ugÄ… chmurowÄ…. SprawdĹş internet i sprĂłbuj ponownie.');
+    const error=new Error('Nie można połączyć się z usługą chmurową. Sprawdź internet i spróbuj ponownie.');
     error.code='NETWORK_ERROR';
     throw error;
   }
-  const data=await response.json().catch(()=>({ok:false,code:'INVALID_RESPONSE',message:'Serwer zwrĂłciĹ‚ nieprawidĹ‚owÄ… odpowiedĹş.'}));
+  const data=await response.json().catch(()=>({ok:false,code:'INVALID_RESPONSE',message:'Serwer zwrócił nieprawidłową odpowiedź.'}));
   if(!response.ok||!data.ok){
-    const error=new Error(data.message||'Operacja nie powiodĹ‚a siÄ™.');
+    const error=new Error(data.message||'Operacja nie powiodła się.');
     error.code=data.code||'API_ERROR';
     error.details=data;
     throw error;
@@ -54,4 +56,3 @@ export const registrationApi={
   checkout:payload=>requestApi('createCheckout',{...payload,sessionToken:loadCompanySession()?.token}),
   confirmCheckout:sessionId=>requestApi('confirmCheckout',{sessionId,sessionToken:loadCompanySession()?.token})
 };
-
