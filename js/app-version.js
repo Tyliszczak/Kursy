@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='0.12.8';
+  const VERSION='0.12.9';
   globalThis.KURSY_APP_VERSION=VERSION;
   const paint=()=>{const b=document.querySelector('.badge');if(b)b.textContent=`WERSJA TESTOWA ${VERSION}`};
   if(typeof document!=='undefined'){
