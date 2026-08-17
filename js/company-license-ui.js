@@ -27,7 +27,7 @@ function render(){
   const statusText=trialPending?'Trial jeszcze nie ruszył':statusLabel(company,t);
   const statusHint=trialPending?'Okres próbny rozpocznie się po pierwszej aktywacji na urządzeniu kierowcy.':'';
   const companyDataPanel=contactEditing
-    ?`<div class="panel" style="margin:18px 0"><h3>Dane firmy</h3><form id="companyContactForm" class="ownerFields"><label>Adres e-mail<input name="email" type="email" required value="${esc(company.adminEmail||'')}"></label><label>Numer telefonu<input name="phone" type="tel" required value="${esc(company.adminPhone||'')}"></label><div class="actions"><button class="btn primary" type="submit">Zapisz zmiany</button><button class="btn" type="button" data-cancel-company-contact>Anuluj</button></div></form><h3 style="margin-top:18px">Zmień hasło</h3><form id="companyPasswordForm" class="ownerFields"><label>Obecne hasło<input name="currentPassword" type="password" required autocomplete="current-password"></label><label>Nowe hasło<input name="newPassword" type="password" minlength="10" required autocomplete="new-password"></label><label>Powtórz nowe hasło<input name="confirmPassword" type="password" minlength="10" required autocomplete="new-password"></label><button class="btn primary" type="submit">Zmień hasło</button></form></div>`
+    ?`<div class="panel" style="margin:18px 0"><h3>Dane firmy</h3><form id="companyContactForm" class="ownerFields"><label>Adres e-mail<input name="email" type="email" required value="${esc(company.adminEmail||'')}"></label><label>Numer telefonu<input name="phone" type="tel" required value="${esc(company.adminPhone||'')}"></label><div class="actions"><button class="btn primary" type="button" data-save-company-contact>Zapisz zmiany</button><button class="btn" type="button" data-cancel-company-contact>Anuluj</button></div></form><h3 style="margin-top:18px">Zmień hasło</h3><form id="companyPasswordForm" class="ownerFields"><label>Obecne hasło<input name="currentPassword" type="password" required autocomplete="current-password"></label><label>Nowe hasło<input name="newPassword" type="password" minlength="10" required autocomplete="new-password"></label><label>Powtórz nowe hasło<input name="confirmPassword" type="password" minlength="10" required autocomplete="new-password"></label><button class="btn primary" type="submit">Zmień hasło</button></form></div>`
     :`<div class="actions" style="margin:18px 0"><button class="btn" type="button" data-edit-company-contact>Edytuj dane firmy</button></div>`;
   root.innerHTML=`<h2>Dane firmy i kierowcy</h2><p class="muted">Zarządzaj kierowcami, urządzeniami oraz danymi firmy.</p>
   <div class="licenseSummary"><strong>${esc(company.name)}</strong><span class="licenseStatus"${trialPending?` title="${esc(statusHint)}"`:''}>${esc(statusText)}</span><span>${t('license.trial',{start:formatDate(l.trialStartedAt),end:formatDate(l.trialEndsAt)})}</span>${l.monthlyPrice!==null?`<span>${esc(l.monthlyPrice)} ${esc(l.currency)} / miesiąc</span>`:''}</div>
@@ -37,15 +37,33 @@ function render(){
 function fail(error){root.innerHTML=`<div class="notice"><strong>${esc(error.message||error)}</strong><p class="muted">Dane nie zostały zapisane lokalnie. Sprawdź połączenie z centralnym backendem.</p></div>`}
 async function refresh(){const result=await licenseCloudApi.companySnapshot();company=result.company;render()}
 async function activationFor(driverId){const result=await licenseCloudApi.createDriverActivation(driverId);return activationUrl(result.activationToken)}
-async function busy(button,task){button.disabled=true;try{await task()}catch(error){alert(translateMessage(error.message))}finally{button.disabled=false}}
+async function busy(button,task){button.disabled=true;try{await task()}catch(error){alert(translateMessage(error.message))}finally{if(button.isConnected)button.disabled=false}}
+async function saveCompanyContact(button){
+  if(!contactEditing)return;
+  const form=root.querySelector('#companyContactForm');
+  if(!form)return;
+  if(!form.reportValidity())return;
+  const data=new FormData(form);
+  const original=button.textContent;
+  button.textContent='Zapisywanie…';
+  await busy(button,async()=>{
+    const result=await licenseCloudApi.updateCompanyContact({email:data.get('email'),phone:data.get('phone')});
+    company=result.company;
+    contactEditing=false;
+    render();
+    alert('Dane firmy zostały zaktualizowane.');
+  });
+  if(button.isConnected)button.textContent=original;
+}
 
 document.addEventListener('submit',event=>{
   if(event.target.id==='driverForm'){event.preventDefault();const form=event.target,data=new FormData(form),button=form.querySelector('button[type=submit]');busy(button,async()=>{const result=await licenseCloudApi.addDriver({name:data.get('name'),phone:data.get('phone'),email:data.get('email')});company=result.company;form.reset();render()});return}
-  if(event.target.id==='companyContactForm'){event.preventDefault();if(!contactEditing)return;const form=event.target,data=new FormData(form),button=form.querySelector('button[type=submit]');busy(button,async()=>{const result=await licenseCloudApi.updateCompanyContact({email:data.get('email'),phone:data.get('phone')});company=result.company;contactEditing=false;render();alert('Dane firmy zostały zaktualizowane.')});return}
+  if(event.target.id==='companyContactForm'){event.preventDefault();const button=event.target.querySelector('[data-save-company-contact]');if(button)saveCompanyContact(button);return}
   if(event.target.id==='companyPasswordForm'){event.preventDefault();const form=event.target,data=new FormData(form),button=form.querySelector('button[type=submit]');if(data.get('newPassword')!==data.get('confirmPassword')){alert('Nowe hasła nie są takie same.');return}busy(button,async()=>{await licenseCloudApi.changeCompanyPassword({currentPassword:data.get('currentPassword'),newPassword:data.get('newPassword')});form.reset();alert('Hasło zostało zmienione.')});return}
 });
 document.addEventListener('click',event=>{
   const editContact=event.target.closest('[data-edit-company-contact]');if(editContact){contactEditing=true;render();const input=root.querySelector('#companyContactForm input[name="email"]');input?.focus();return}
+  const saveContact=event.target.closest('[data-save-company-contact]');if(saveContact){saveCompanyContact(saveContact);return}
   const cancelContact=event.target.closest('[data-cancel-company-contact]');if(cancelContact){contactEditing=false;render();return}
   const rename=event.target.closest('[data-rename-device]');if(rename){const device=company.adminDevices.find(x=>x.deviceId===rename.dataset.renameDevice);const name=prompt('Podaj nową nazwę urządzenia:',device?.name||'');if(!name?.trim())return;busy(rename,async()=>{const result=await licenseCloudApi.renameAdminDevice(name.trim());company=result.company;render()});return}
   const copy=event.target.closest('[data-copy-driver]');if(copy){if(!confirmFirstDriverAccess())return;busy(copy,async()=>{const url=await activationFor(copy.dataset.copyDriver);await navigator.clipboard.writeText(url);alert(t('message.linkCopied'))});return}
