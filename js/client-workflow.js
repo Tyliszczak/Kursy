@@ -26,6 +26,7 @@ function syncClientStatus(){
   const dirty=isDirty();
   dataStatus.textContent=dirty?'Zmiany zapisane lokalnie.':'Aktualne dane są zapisane w bazie.';
   button.hidden=!dirty;
+  button.style.display=dirty?'inline-flex':'none';
   button.disabled=!dirty||!save||save.disabled;
 }
 
