@@ -7,9 +7,10 @@ const state={companyId:null,email:null,resetEmail:null};
 const show=id=>document.querySelectorAll('[data-stage]').forEach(x=>x.classList.toggle('hidden',x.dataset.stage!==id));
 const notice=(text,type='')=>{const n=$('#notice');n.textContent=text;n.className=`notice ${type}`;n.hidden=false};
 const resetError=error=>{
-  if(error.code==='RESET_CODE_EXPIRED')return 'Kod utracił ważność. Wyślij nowy kod.';
+  if(['RESET_CODE_EXPIRED','CODE_EXPIRED'].includes(error.code))return 'Kod utracił ważność. Wyślij nowy kod.';
   if(error.code==='RESET_CODE_SUPERSEDED')return 'Ten kod nie jest już ważny. Użyj najnowszego kodu wysłanego na e-mail.';
-  if(error.code==='RESET_CODE_INVALID')return 'Kod jest niepoprawny.';
+  if(['RESET_CODE_INVALID','INVALID_CODE'].includes(error.code))return 'Kod jest niepoprawny.';
+  if(error.code==='CODE_LOCKED')return 'Przekroczono dozwoloną liczbę prób. Wyślij nowy kod.';
   return translateMessage(error.message);
 };
 initI18n(document.body);
