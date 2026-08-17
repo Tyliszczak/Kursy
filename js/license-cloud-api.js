@@ -1,11 +1,11 @@
 import {apiUrl,loadCompanySession,requestApi,usingSecurityGateway} from './registration-api.js';
-import {getDeviceIdentity} from './device-identity.js';
+import {getDeviceIdentity,getAdminDeviceName,requireAdminDeviceName,setAdminDeviceName} from './device-identity.js';
 const OWNER_SESSION_KEY='kursy.owner.session.v1';
 const DRIVER_SESSION_KEY='kursy.driver.session.v2';
 
 function companyToken(){const token=loadCompanySession()?.token;if(!token&&!usingSecurityGateway()){const error=new Error('Sesja firmy wygasła. Zaloguj się ponownie.');error.code='UNAUTHORIZED';throw error}return token||''}
 function companyAuth(){return {sessionToken:companyToken(),...getDeviceIdentity()}}
-let adminActivation=null;export function ensureAdminDevice(){if(!adminActivation)adminActivation=requestApi('activateAdminDevice',companyAuth()).catch(error=>{adminActivation=null;throw error});return adminActivation}
+let adminActivation=null;export function ensureAdminDevice(){if(!adminActivation){const deviceName=getAdminDeviceName()||requireAdminDeviceName();adminActivation=requestApi('activateAdminDevice',{...companyAuth(),deviceName}).catch(error=>{adminActivation=null;throw error})}return adminActivation}
 export function loadOwnerSession(){try{const value=JSON.parse(sessionStorage.getItem(OWNER_SESSION_KEY)||'null');return value&&new Date(value.expiresAt)>new Date()?value:null}catch{return null}}
 function ownerToken(){const token=loadOwnerSession()?.token;if(!token&&!usingSecurityGateway()){const error=new Error('Zaloguj się jako właściciel systemu.');error.code='OWNER_UNAUTHORIZED';throw error}return token||''}
 function saveOwnerSession(session){if(session)sessionStorage.setItem(OWNER_SESSION_KEY,JSON.stringify(session));return session}
@@ -22,6 +22,9 @@ export const licenseCloudApi={
   endpoint:()=>apiUrl(),
   companySnapshot:async()=>{await ensureAdminDevice();return requestApi('companySnapshot',companyAuth())},
   activateAdminDevice:()=>ensureAdminDevice(),
+  renameAdminDevice:async name=>{await ensureAdminDevice();const auth=companyAuth();const value=String(name||'').trim();const result=await requestApi('renameAdminDevice',{...auth,deviceName:value});setAdminDeviceName(value);return result},
+  updateCompanyContact:async data=>{await ensureAdminDevice();return requestApi('updateCompanyContact',{...companyAuth(),...data})},
+  changeCompanyPassword:async data=>{await ensureAdminDevice();return requestApi('changeCompanyPassword',{...companyAuth(),...data})},
   addDriver:async driver=>{await ensureAdminDevice();return requestApi('addDriver',{...companyAuth(),...driver})},
   createDriverActivation:async driverId=>{await ensureAdminDevice();return requestApi('createDriverActivation',{...companyAuth(),driverId})},
   setDriverBlocked:async(driverId,blocked)=>{await ensureAdminDevice();return requestApi('setDriverBlocked',{...companyAuth(),driverId,blocked})},
