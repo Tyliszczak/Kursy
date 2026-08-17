@@ -6,13 +6,16 @@ function isDirty(){
   const notice=$('#draftNotice');
   return Boolean(notice&&!notice.hidden);
 }
+function setTextIfChanged(el,text){
+  if(el&&el.textContent!==text)el.textContent=text;
+}
 function syncClientStatus(){
   const dataStatus=$('#dataStatus');
   const apiStatus=$('#apiStatus');
   const save=$('#saveCloudBtn');
   const draft=$('#draftNotice');
   if(apiStatus?.closest('.status'))apiStatus.closest('.status').remove();
-  if(draft){draft.textContent='Zmiany zapisane lokalnie.';draft.classList.add('info')}
+  if(draft){setTextIfChanged(draft,'Zmiany zapisane lokalnie.');draft.classList.add('info')}
   if(!dataStatus)return;
   let button=$('#sendDatabaseBtn');
   if(!button){
@@ -24,7 +27,7 @@ function syncClientStatus(){
     button.addEventListener('click',()=>save?.click());
   }
   const dirty=isDirty();
-  dataStatus.textContent=dirty?'Zmiany zapisane lokalnie.':'Aktualne dane są zapisane w bazie.';
+  setTextIfChanged(dataStatus,dirty?'Zmiany zapisane lokalnie.':'Aktualne dane są zapisane w bazie.');
   button.hidden=!dirty;
   button.style.display=dirty?'inline-flex':'none';
   button.disabled=!dirty||!save||save.disabled;
@@ -74,10 +77,12 @@ function interceptLogout(){
   },true);
 }
 
-const observer=new MutationObserver(syncClientStatus);
 addEventListener('DOMContentLoaded',()=>{
   syncClientStatus();interceptLogout();
-  const draft=$('#draftNotice'),save=$('#saveCloudBtn'),data=$('#dataStatus');
-  [draft,save,data].filter(Boolean).forEach(el=>observer.observe(el,{attributes:true,childList:true,subtree:true,characterData:true}));
-  setInterval(syncClientStatus,750);
+  const save=$('#saveCloudBtn');
+  if(save){
+    const observer=new MutationObserver(syncClientStatus);
+    observer.observe(save,{attributes:true,attributeFilter:['disabled']});
+  }
+  setInterval(syncClientStatus,1500);
 });
