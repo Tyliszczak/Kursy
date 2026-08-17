@@ -7,8 +7,8 @@ const COOKIE={
 
 const COMPANY_ACTIONS=new Set([
   'logout','createCheckout','confirmCheckout','licenseStatus','loadRoutes','saveRoutes',
-  'companySnapshot','activateAdminDevice','addDriver','createDriverActivation',
-  'setDriverBlocked','releaseDriverDevices','deleteDriver','releaseDevice'
+  'companySnapshot','activateAdminDevice','renameAdminDevice','updateCompanyContact','changeCompanyPassword',
+  'addDriver','createDriverActivation','setDriverBlocked','releaseDriverDevices','deleteDriver','releaseDevice'
 ]);
 const OWNER_ACTIONS=new Set([
   'ownerLogout','ownerSnapshot','ownerCreateCompany','ownerUpdateCompany',
@@ -65,5 +65,5 @@ export async function onRequestPost({request,env}){
     const secured=secureResponse(body.action,data);return json(secured.data,upstream.ok?200:502,secured.headers);
   }catch(error){return json({ok:false,code:error.code||'GATEWAY_ERROR',message:error.status?'Żądanie zostało odrzucone.':'Brama API jest chwilowo niedostępna.'},error.status||500)}
 }
-export function onRequestGet(){return json({ok:true,service:'kursy-security-gateway',version:'1.2.0'})}
+export function onRequestGet(){return json({ok:true,service:'kursy-security-gateway',version:'1.3.0'})}
 export function onRequestOptions(){return new Response(null,{status:204,headers:{Allow:'GET, POST, OPTIONS','Cache-Control':'no-store'}})}
