@@ -53,6 +53,8 @@ export const registrationApi={
   verifyEmail:async payload=>{const result=await requestApi('verifyEmail',payload);saveCompanySession(result.session);return result},
   login:async payload=>{const result=await requestApi('login',payload);saveCompanySession(result.session);return result},
   logout:async()=>{const session=loadCompanySession();try{if(usingSecurityGateway()||session?.token)await requestApi('logout',{sessionToken:session?.token||''})}finally{clearCompanySession()}},
+  passwordResetRequest:email=>requestApi('passwordResetRequest',{email}),
+  passwordResetConfirm:payload=>requestApi('passwordResetConfirm',payload),
   checkout:payload=>requestApi('createCheckout',{...payload,sessionToken:loadCompanySession()?.token}),
   confirmCheckout:sessionId=>requestApi('confirmCheckout',{sessionId,sessionToken:loadCompanySession()?.token})
 };
