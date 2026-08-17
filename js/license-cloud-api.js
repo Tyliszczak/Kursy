@@ -22,7 +22,7 @@ export const licenseCloudApi={
   endpoint:()=>apiUrl(),
   companySnapshot:async()=>{await ensureAdminDevice();return requestApi('companySnapshot',companyAuth())},
   activateAdminDevice:()=>ensureAdminDevice(),
-  renameAdminDevice:async name=>{await ensureAdminDevice();const auth=companyAuth();const value=String(name||'').trim();const result=await requestApi('renameAdminDevice',{...auth,deviceName:value});setAdminDeviceName(value);return result},
+  renameAdminDevice:async name=>{await ensureAdminDevice();const auth=companyAuth();const value=String(name||'').trim();const result=await requestApi('renameAdminDevice',{...auth,deviceName:value,name:value});setAdminDeviceName(value);return result},
   updateCompanyContact:async data=>{await ensureAdminDevice();return requestApi('updateCompanyContact',{...companyAuth(),...data})},
   changeCompanyPassword:async data=>{await ensureAdminDevice();return requestApi('changeCompanyPassword',{...companyAuth(),...data})},
   addDriver:async driver=>{await ensureAdminDevice();return requestApi('addDriver',{...companyAuth(),...driver})},
