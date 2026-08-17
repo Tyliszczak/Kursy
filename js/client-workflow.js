@@ -17,9 +17,9 @@ function syncClientStatus(){
   let button=$('#sendDatabaseBtn');
   if(!button){
     button=document.createElement('button');
-    button.id='sendDatabaseBtn';button.type='button';button.className='btn primary';
+    button.id='sendDatabaseBtn';button.type='button';button.className='btn';
     button.textContent='Wyślij do bazy danych';
-    button.style.marginTop='10px';
+    button.style.marginTop='10px';button.style.background='#16803c';button.style.color='#fff';button.style.borderColor='#16803c';button.style.fontWeight='700';
     dataStatus.parentElement?.appendChild(button);
     button.addEventListener('click',()=>save?.click());
   }
