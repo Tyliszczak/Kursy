@@ -130,6 +130,7 @@ function saveRoutesV2_(p){
 
     let added=0,updated=0,removed=0,reordered=0;
     const now=iso_();
+    const nextPosition=active.reduce((max,row)=>Math.max(max,Number(row.position)||0),-1)+1;
 
     upserts.forEach(route=>{
       const routeId=routeIdFromDataV2_(route);
@@ -147,7 +148,7 @@ function saveRoutesV2_(p){
       }else{
         append_(SHEETS.ROUTE_ITEMS,{
           routeId,companyId:auth.companyId,name:String(route.name||''),
-          position:Object.prototype.hasOwnProperty.call(positionById,routeId)?positionById[routeId]:active.length+added,
+          position:Object.prototype.hasOwnProperty.call(positionById,routeId)?positionById[routeId]:nextPosition+added,
           version:1,routeJson:json,updatedAt:now,updatedBy:auth.adminId,deletedAt:''
         });
         added++;
