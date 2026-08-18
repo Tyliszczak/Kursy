@@ -2,7 +2,8 @@ import {loadCompanySession,requestApi,usingSecurityGateway} from './registration
 import {getDeviceIdentity} from './device-identity.js';
 import {ensureAdminDevice} from './license-cloud-api.js';
 
-let routeVersions=null;
+let routeVersions={};
+let routeSnapshot={};
 
 function sessionToken(){
   const token=loadCompanySession()?.token;
@@ -14,12 +15,27 @@ function sessionToken(){
   return token||'';
 }
 
+function routeId(route){
+  return String(route?.id||'');
+}
+
+function snapshotOf(routes){
+  const snapshot={};
+  (Array.isArray(routes)?routes:[]).forEach(route=>{
+    const id=routeId(route);
+    if(id)snapshot[id]=JSON.stringify(route);
+  });
+  return snapshot;
+}
+
 export async function loadCloudRoutes(){
   await ensureAdminDevice();
   const result=await requestApi('loadRoutes',{sessionToken:sessionToken(),...getDeviceIdentity()});
+  const routes=Array.isArray(result.routes)?result.routes:[];
   routeVersions=result.routeVersions&&typeof result.routeVersions==='object'?{...result.routeVersions}:{};
+  routeSnapshot=snapshotOf(routes);
   return {
-    routes:Array.isArray(result.routes)?result.routes:[],
+    routes,
     version:Number(result.version)||0,
     routeVersions:{...routeVersions},
     updatedAt:result.updatedAt||null,
@@ -29,19 +45,28 @@ export async function loadCloudRoutes(){
 
 export async function saveCloudRoutes(routes,expectedVersion){
   await ensureAdminDevice();
-  const payload={
+  const nextRoutes=Array.isArray(routes)?routes:[];
+  const nextSnapshot=snapshotOf(nextRoutes);
+  const upserts=nextRoutes.filter(route=>{
+    const id=routeId(route);
+    return id&&routeSnapshot[id]!==nextSnapshot[id];
+  });
+  const deletes=Object.keys(routeSnapshot).filter(id=>!Object.prototype.hasOwnProperty.call(nextSnapshot,id));
+
+  const result=await requestApi('saveRoutes',{
     sessionToken:sessionToken(),
     ...getDeviceIdentity(),
-    routes,
-    expectedVersion:Number(expectedVersion)||0
-  };
-  if(routeVersions)payload.routeVersions={...routeVersions};
-  const result=await requestApi('saveRoutes',payload);
+    expectedVersion:Number(expectedVersion)||0,
+    routeVersions:{...routeVersions},
+    routeChanges:{upserts,deletes}
+  });
+
   routeVersions=result.routeVersions&&typeof result.routeVersions==='object'?{...result.routeVersions}:routeVersions;
+  routeSnapshot=nextSnapshot;
   return {
-    routes:Array.isArray(result.routes)?result.routes:routes,
+    routes:nextRoutes,
     version:Number(result.version)||0,
-    routeVersions:routeVersions?{...routeVersions}:{},
+    routeVersions:{...routeVersions},
     updatedAt:result.updatedAt||null
   };
 }
