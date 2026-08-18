@@ -1,20 +1,24 @@
 // KURSY API — magazyn tras v2.
 // Jedna trasa = jeden wiersz w RouteItems. Stary arkusz Routes pozostaje jako kopia migracyjna.
 
-SHEETS.ROUTE_ITEMS='RouteItems';
-SHEETS.ROUTE_STATE='RouteState';
-HEADERS.RouteItems=['routeId','companyId','name','position','version','routeJson','updatedAt','updatedBy','deletedAt'];
-HEADERS.RouteState=['companyId','version','updatedAt','migratedAt'];
-
 const ROUTE_JSON_MAX_CHARS_V2=45000;
 
+function ensureRouteSchemaV2_(){
+  SHEETS.ROUTE_ITEMS='RouteItems';
+  SHEETS.ROUTE_STATE='RouteState';
+  HEADERS.RouteItems=['routeId','companyId','name','position','version','routeJson','updatedAt','updatedBy','deletedAt'];
+  HEADERS.RouteState=['companyId','version','updatedAt','migratedAt'];
+}
+
 function migrateRouteStorageV2(){
+  ensureRouteSchemaV2_();
   rows_(SHEETS.COMPANIES).forEach(company=>ensureRouteMigrationForCompanyV2_(company.id));
   PropertiesService.getScriptProperties().setProperty('SCHEMA_VERSION','5');
   return 'OK';
 }
 
 function loadRoutesV2_(p){
+  ensureRouteSchemaV2_();
   const auth=session_(p.sessionToken);
   assertAdminDevice_(auth,p);
   ensureRouteMigrationForCompanyV2_(auth.companyId);
@@ -31,6 +35,7 @@ function loadRoutesV2_(p){
 }
 
 function saveRoutesV2_(p){
+  ensureRouteSchemaV2_();
   const auth=session_(p.sessionToken);
   assertAdminDevice_(auth,p);
   assertRouteWriteAllowed_(auth.companyId);
@@ -192,6 +197,7 @@ function saveRoutesV2_(p){
 }
 
 function driverRoutesV2_(p){
+  ensureRouteSchemaV2_();
   required_(p,['driverSessionToken','deviceId']);
   const status=driverStatus_(p);
   if(!status.mayUse)throw apiError_('DRIVER_ACCESS_DENIED','Brak dostępu do tras.');
