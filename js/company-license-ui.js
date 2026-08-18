@@ -10,6 +10,28 @@ const startsFirstTrial=()=>company?.license.status==='trial_pending'&&!company.l
 const confirmFirstDriverAccess=()=>!startsFirstTrial()||confirm(`${t('message.firstDriverTrialWarning')}\n\n${t('message.firstDriverTrialConfirm')}`);
 const activationUrl=token=>{const url=new URL('driver.html',location.href);url.hash=`activate=${encodeURIComponent(token)}`;return url.href};
 
+async function copyText(text){
+  if(navigator.clipboard?.writeText&&document.hasFocus()){
+    try{await navigator.clipboard.writeText(text);return true}catch{}
+  }
+  const input=document.createElement('textarea');
+  input.value=text;
+  input.setAttribute('readonly','');
+  input.style.position='fixed';
+  input.style.left='-9999px';
+  input.style.top='0';
+  document.body.appendChild(input);
+  input.focus();
+  input.select();
+  input.setSelectionRange(0,input.value.length);
+  let copied=false;
+  try{copied=document.execCommand('copy')}catch{}
+  input.remove();
+  if(copied)return true;
+  prompt('Nie udało się skopiować automatycznie. Skopiuj link z pola poniżej:',text);
+  return false;
+}
+
 function driverName(userId){return company?.drivers.find(driver=>driver.id===userId)?.name||t('drivers.unknown')}
 function deviceRows(devices,role){
   if(!devices.length)return `<div class="empty">${t('devices.none')}</div>`;
@@ -66,7 +88,7 @@ document.addEventListener('click',event=>{
   const saveContact=event.target.closest('[data-save-company-contact]');if(saveContact){saveCompanyContact(saveContact);return}
   const cancelContact=event.target.closest('[data-cancel-company-contact]');if(cancelContact){contactEditing=false;render();return}
   const rename=event.target.closest('[data-rename-device]');if(rename){const device=company.adminDevices.find(x=>x.deviceId===rename.dataset.renameDevice);const name=prompt('Podaj nową nazwę urządzenia:',device?.name||'');if(!name?.trim())return;busy(rename,async()=>{const result=await licenseCloudApi.renameAdminDevice(name.trim());company=result.company;render()});return}
-  const copy=event.target.closest('[data-copy-driver]');if(copy){if(!confirmFirstDriverAccess())return;busy(copy,async()=>{const url=await activationFor(copy.dataset.copyDriver);await navigator.clipboard.writeText(url);alert(t('message.linkCopied'))});return}
+  const copy=event.target.closest('[data-copy-driver]');if(copy){if(!confirmFirstDriverAccess())return;busy(copy,async()=>{const url=await activationFor(copy.dataset.copyDriver);const copied=await copyText(url);if(copied)alert(t('message.linkCopied'))});return}
   const sms=event.target.closest('[data-sms-driver]');if(sms){if(!confirmFirstDriverAccess())return;busy(sms,async()=>{const driver=company.drivers.find(x=>x.id===sms.dataset.smsDriver),url=await activationFor(driver.id),body=t('message.sms',{url});location.href=`sms:${encodeURIComponent(driver.phone)}?body=${encodeURIComponent(body)}`});return}
   const releaseAll=event.target.closest('[data-release-driver-devices]');if(releaseAll){const driver=company.drivers.find(x=>x.id===releaseAll.dataset.releaseDriverDevices);if(!confirm(t('drivers.releaseConfirm',{name:driver.name})))return;busy(releaseAll,async()=>{const result=await licenseCloudApi.releaseDriverDevices(driver.id);company=result.company;render()});return}
   const block=event.target.closest('[data-block-driver]');if(block){const driver=company.drivers.find(x=>x.id===block.dataset.blockDriver),blocked=driver.status==='blocked';if(!confirm(t(blocked?'drivers.unblockConfirm':'drivers.blockConfirm',{name:driver.name})))return;busy(block,async()=>{const result=await licenseCloudApi.setDriverBlocked(driver.id,!blocked);company=result.company;render()});return}
