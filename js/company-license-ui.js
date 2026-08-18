@@ -5,10 +5,13 @@ import {t,translateMessage} from './i18n.js';
 
 let company=null;
 let contactEditing=false;
+let pendingOps=0;
+const pendingDrivers=new Set();
 const root=document.querySelector('#companyLicensePanel');
 const startsFirstTrial=()=>company?.license.status==='trial_pending'&&!company.license.trialStartedAt&&!company.drivers.some(d=>d.status==='active');
 const confirmFirstDriverAccess=()=>!startsFirstTrial()||confirm(`${t('message.firstDriverTrialWarning')}\n\n${t('message.firstDriverTrialConfirm')}`);
 const activationUrl=token=>{const url=new URL('driver.html',location.href);url.hash=`activate=${encodeURIComponent(token)}`;return url.href};
+const cloneCompany=()=>company?JSON.parse(JSON.stringify(company)):null;
 
 async function copyText(text){
   if(navigator.clipboard?.writeText&&document.hasFocus()){
@@ -32,6 +35,33 @@ async function copyText(text){
   return false;
 }
 
+function beginPending(driverId=''){
+  pendingOps+=1;
+  if(driverId)pendingDrivers.add(driverId);
+  render();
+}
+function endPending(driverId=''){
+  pendingOps=Math.max(0,pendingOps-1);
+  if(driverId)pendingDrivers.delete(driverId);
+  render();
+}
+async function optimistic({driverId='',apply,request}){
+  const snapshot=cloneCompany();
+  try{
+    apply();
+    beginPending(driverId);
+    const result=await request();
+    if(result?.company)company=result.company;
+    return result;
+  }catch(error){
+    company=snapshot;
+    alert(translateMessage(error.message));
+    return null;
+  }finally{
+    endPending(driverId);
+  }
+}
+
 function driverName(userId){return company?.drivers.find(driver=>driver.id===userId)?.name||t('drivers.unknown')}
 function deviceRows(devices,role){
   if(!devices.length)return `<div class="empty">${t('devices.none')}</div>`;
@@ -43,15 +73,25 @@ function deviceRows(devices,role){
   }).join('');
 }
 function render(){
-  if(!root||!company)return;const l=company.license,warning=startsFirstTrial()&&company.drivers.length?`<div class="notice warning" role="alert"><strong>${t('message.firstDriverTrialWarning')}</strong></div>`:'';
-  const drivers=company.drivers.map(d=>{const deviceCount=company.driverDevices.filter(device=>device.userId===d.id).length,blocked=d.status==='blocked';return `<div class="licenseRow"><span><strong>${esc(d.name)}</strong><small>${esc(d.phone)} · ${esc(t(`driverStatus.${d.status}`))}</small><small>${t('drivers.deviceCount',{count:deviceCount})}</small></span><div class="itemActions"><button class="btn" data-copy-driver="${esc(d.id)}">${t('common.copyLink')}</button><button class="btn" data-sms-driver="${esc(d.id)}">${t('common.sendSms')}</button>${deviceCount?`<button class="btn" data-release-driver-devices="${esc(d.id)}">${t('drivers.releaseDevices')}</button>`:''}<button class="btn" data-block-driver="${esc(d.id)}">${blocked?t('drivers.unblock'):t('drivers.block')}</button><button class="btn dangerText" data-delete-driver="${esc(d.id)}">${t('drivers.delete')}</button></div></div>`}).join('')||`<div class="empty">${t('drivers.none')}</div>`;
+  if(!root||!company)return;
+  const l=company.license;
+  const warning=startsFirstTrial()&&company.drivers.length?`<div class="notice warning" role="alert"><strong>${t('message.firstDriverTrialWarning')}</strong></div>`:'';
+  const syncNotice=pendingOps?`<div class="notice info" role="status"><strong>Zapisywanie zmian online…</strong><br><small>Możesz dalej pracować w panelu. Synchronizacja trwa w tle.</small></div>`:'';
+  const drivers=company.drivers.map(d=>{
+    const deviceCount=company.driverDevices.filter(device=>device.userId===d.id).length;
+    const blocked=d.status==='blocked';
+    const pending=pendingDrivers.has(d.id)||String(d.id).startsWith('local_pending_');
+    const pendingText=pending?'<small><strong>Zapisywanie…</strong></small>':'';
+    const disabled=pending?' disabled':'';
+    return `<div class="licenseRow"><span><strong>${esc(d.name)}</strong><small>${esc(d.phone)} · ${esc(t(`driverStatus.${d.status}`))}</small><small>${t('drivers.deviceCount',{count:deviceCount})}</small>${pendingText}</span><div class="itemActions"><button class="btn" data-copy-driver="${esc(d.id)}"${disabled}>${t('common.copyLink')}</button><button class="btn" data-sms-driver="${esc(d.id)}"${disabled}>${t('common.sendSms')}</button>${deviceCount?`<button class="btn" data-release-driver-devices="${esc(d.id)}"${disabled}>${t('drivers.releaseDevices')}</button>`:''}<button class="btn" data-block-driver="${esc(d.id)}"${disabled}>${blocked?t('drivers.unblock'):t('drivers.block')}</button><button class="btn dangerText" data-delete-driver="${esc(d.id)}"${disabled}>${t('drivers.delete')}</button></div></div>`;
+  }).join('')||`<div class="empty">${t('drivers.none')}</div>`;
   const trialPending=l.status==='trial_pending'&&!l.trialStartedAt;
   const statusText=trialPending?'Trial jeszcze nie ruszył':statusLabel(company,t);
   const statusHint=trialPending?'Okres próbny rozpocznie się po pierwszej aktywacji na urządzeniu kierowcy.':'';
   const companyDataPanel=contactEditing
     ?`<div class="panel" style="margin:18px 0"><h3>Dane firmy</h3><form id="companyContactForm" class="ownerFields"><label>Adres e-mail<input name="email" type="email" required value="${esc(company.adminEmail||'')}"></label><label>Numer telefonu<input name="phone" type="tel" required value="${esc(company.adminPhone||'')}"></label><div class="actions"><button class="btn primary" type="button" data-save-company-contact>Zapisz zmiany</button><button class="btn" type="button" data-cancel-company-contact>Anuluj</button></div></form><h3 style="margin-top:18px">Zmień hasło</h3><form id="companyPasswordForm" class="ownerFields"><label>Obecne hasło<input name="currentPassword" type="password" required autocomplete="current-password"></label><label>Nowe hasło<input name="newPassword" type="password" minlength="10" required autocomplete="new-password"></label><label>Powtórz nowe hasło<input name="confirmPassword" type="password" minlength="10" required autocomplete="new-password"></label><button class="btn primary" type="submit">Zmień hasło</button></form></div>`
     :`<div class="actions" style="margin:18px 0"><button class="btn" type="button" data-edit-company-contact>Edytuj dane firmy</button></div>`;
-  root.innerHTML=`<h2>Dane firmy i kierowcy</h2><p class="muted">Zarządzaj kierowcami, urządzeniami oraz danymi firmy.</p>
+  root.innerHTML=`<h2>Dane firmy i kierowcy</h2><p class="muted">Zarządzaj kierowcami, urządzeniami oraz danymi firmy.</p>${syncNotice}
   <div class="licenseSummary"><strong>${esc(company.name)}</strong><span class="licenseStatus"${trialPending?` title="${esc(statusHint)}"`:''}>${esc(statusText)}</span><span>${t('license.trial',{start:formatDate(l.trialStartedAt),end:formatDate(l.trialEndsAt)})}</span>${l.monthlyPrice!==null?`<span>${esc(l.monthlyPrice)} ${esc(l.currency)} / miesiąc</span>`:''}</div>
   ${companyDataPanel}
   <div class="licenseGrid"><section><h3>${t('drivers.title',{used:company.drivers.length,limit:l.limits.drivers})}</h3><form id="driverForm" class="ownerFields"><label>${t('drivers.name')}<input name="name" required></label><label>${t('drivers.phone')}<input name="phone" type="tel" required></label><label>${t('drivers.email')}<input name="email" type="email"></label><button class="btn primary" type="submit">${t('drivers.add')}</button></form>${warning}<div class="licenseList">${drivers}</div></section><section><h3>${t('devices.admin',{used:company.adminDevices.length,limit:l.limits.adminDevices})}</h3>${deviceRows(company.adminDevices,'admin')}<h3>${t('devices.driver',{used:company.driverDevices.length,limit:l.limits.driverDevices})}</h3>${deviceRows(company.driverDevices,'driver')}</section></div>`;
@@ -59,7 +99,12 @@ function render(){
 function fail(error){root.innerHTML=`<div class="notice"><strong>${esc(error.message||error)}</strong><p class="muted">Dane nie zostały zapisane lokalnie. Sprawdź połączenie z centralnym backendem.</p></div>`}
 async function refresh(){const result=await licenseCloudApi.companySnapshot();company=result.company;render()}
 async function activationFor(driverId){const result=await licenseCloudApi.createDriverActivation(driverId);return activationUrl(result.activationToken)}
-async function busy(button,task){button.disabled=true;try{await task()}catch(error){alert(translateMessage(error.message))}finally{if(button.isConnected)button.disabled=false}}
+async function busy(button,task,label='Przetwarzanie…'){
+  const original=button.textContent;
+  button.disabled=true;
+  button.textContent=label;
+  try{await task()}catch(error){alert(translateMessage(error.message))}finally{if(button.isConnected){button.disabled=false;button.textContent=original}}
+}
 async function saveCompanyContact(button){
   if(!contactEditing)return;
   const form=root.querySelector('#companyContactForm');
@@ -74,26 +119,59 @@ async function saveCompanyContact(button){
     contactEditing=false;
     render();
     alert('Dane firmy zostały zaktualizowane.');
-  });
+  },'Zapisywanie…');
   if(button.isConnected)button.textContent=original;
 }
 
 document.addEventListener('submit',event=>{
-  if(event.target.id==='driverForm'){event.preventDefault();const form=event.target,data=new FormData(form),button=form.querySelector('button[type=submit]');busy(button,async()=>{const result=await licenseCloudApi.addDriver({name:data.get('name'),phone:data.get('phone'),email:data.get('email')});company=result.company;form.reset();render()});return}
+  if(event.target.id==='driverForm'){
+    event.preventDefault();
+    const form=event.target,data=new FormData(form);
+    const name=String(data.get('name')||'').trim(),phone=String(data.get('phone')||'').trim(),email=String(data.get('email')||'').trim();
+    if(!name||!phone)return;
+    const tempId=`local_pending_${Date.now()}`;
+    const localDriver={id:tempId,name,phone,email,status:'inactive'};
+    form.reset();
+    optimistic({
+      driverId:tempId,
+      apply:()=>{company.drivers=[...company.drivers,localDriver]},
+      request:()=>licenseCloudApi.addDriver({name,phone,email})
+    });
+    return;
+  }
   if(event.target.id==='companyContactForm'){event.preventDefault();const button=event.target.querySelector('[data-save-company-contact]');if(button)saveCompanyContact(button);return}
-  if(event.target.id==='companyPasswordForm'){event.preventDefault();const form=event.target,data=new FormData(form),button=form.querySelector('button[type=submit]');if(data.get('newPassword')!==data.get('confirmPassword')){alert('Nowe hasła nie są takie same.');return}busy(button,async()=>{await licenseCloudApi.changeCompanyPassword({currentPassword:data.get('currentPassword'),newPassword:data.get('newPassword')});form.reset();alert('Hasło zostało zmienione.')});return}
+  if(event.target.id==='companyPasswordForm'){event.preventDefault();const form=event.target,data=new FormData(form),button=form.querySelector('button[type=submit]');if(data.get('newPassword')!==data.get('confirmPassword')){alert('Nowe hasła nie są takie same.');return}busy(button,async()=>{await licenseCloudApi.changeCompanyPassword({currentPassword:data.get('currentPassword'),newPassword:data.get('newPassword')});form.reset();alert('Hasło zostało zmienione.')},'Zmienianie…');return}
 });
 document.addEventListener('click',event=>{
   const editContact=event.target.closest('[data-edit-company-contact]');if(editContact){contactEditing=true;render();const input=root.querySelector('#companyContactForm input[name="email"]');input?.focus();return}
   const saveContact=event.target.closest('[data-save-company-contact]');if(saveContact){saveCompanyContact(saveContact);return}
   const cancelContact=event.target.closest('[data-cancel-company-contact]');if(cancelContact){contactEditing=false;render();return}
-  const rename=event.target.closest('[data-rename-device]');if(rename){const device=company.adminDevices.find(x=>x.deviceId===rename.dataset.renameDevice);const name=prompt('Podaj nową nazwę urządzenia:',device?.name||'');if(!name?.trim())return;busy(rename,async()=>{const result=await licenseCloudApi.renameAdminDevice(name.trim());company=result.company;render()});return}
-  const copy=event.target.closest('[data-copy-driver]');if(copy){if(!confirmFirstDriverAccess())return;busy(copy,async()=>{const url=await activationFor(copy.dataset.copyDriver);const copied=await copyText(url);if(copied)alert(t('message.linkCopied'))});return}
-  const sms=event.target.closest('[data-sms-driver]');if(sms){if(!confirmFirstDriverAccess())return;busy(sms,async()=>{const driver=company.drivers.find(x=>x.id===sms.dataset.smsDriver),url=await activationFor(driver.id),body=t('message.sms',{url});location.href=`sms:${encodeURIComponent(driver.phone)}?body=${encodeURIComponent(body)}`});return}
-  const releaseAll=event.target.closest('[data-release-driver-devices]');if(releaseAll){const driver=company.drivers.find(x=>x.id===releaseAll.dataset.releaseDriverDevices);if(!confirm(t('drivers.releaseConfirm',{name:driver.name})))return;busy(releaseAll,async()=>{const result=await licenseCloudApi.releaseDriverDevices(driver.id);company=result.company;render()});return}
-  const block=event.target.closest('[data-block-driver]');if(block){const driver=company.drivers.find(x=>x.id===block.dataset.blockDriver),blocked=driver.status==='blocked';if(!confirm(t(blocked?'drivers.unblockConfirm':'drivers.blockConfirm',{name:driver.name})))return;busy(block,async()=>{const result=await licenseCloudApi.setDriverBlocked(driver.id,!blocked);company=result.company;render()});return}
-  const remove=event.target.closest('[data-delete-driver]');if(remove){const driver=company.drivers.find(x=>x.id===remove.dataset.deleteDriver);if(!confirm(t('drivers.deleteConfirm',{name:driver.name})))return;busy(remove,async()=>{const result=await licenseCloudApi.deleteDriver(driver.id);company=result.company;render()});return}
-  const release=event.target.closest('[data-release-device]');if(release){const [role,deviceId]=release.dataset.releaseDevice.split(':');if(!confirm('Zwolnić to urządzenie?'))return;busy(release,async()=>{const result=await licenseCloudApi.releaseDevice(role,deviceId);company=result.company;render()})}
+  const rename=event.target.closest('[data-rename-device]');if(rename){const device=company.adminDevices.find(x=>x.deviceId===rename.dataset.renameDevice);const name=prompt('Podaj nową nazwę urządzenia:',device?.name||'');if(!name?.trim())return;busy(rename,async()=>{const result=await licenseCloudApi.renameAdminDevice(name.trim());company=result.company;render()},'Zapisywanie…');return}
+  const copy=event.target.closest('[data-copy-driver]');if(copy){if(!confirmFirstDriverAccess())return;busy(copy,async()=>{const url=await activationFor(copy.dataset.copyDriver);const copied=await copyText(url);if(copied)alert(t('message.linkCopied'))},'Generowanie…');return}
+  const sms=event.target.closest('[data-sms-driver]');if(sms){if(!confirmFirstDriverAccess())return;busy(sms,async()=>{const driver=company.drivers.find(x=>x.id===sms.dataset.smsDriver),url=await activationFor(driver.id),body=t('message.sms',{url});location.href=`sms:${encodeURIComponent(driver.phone)}?body=${encodeURIComponent(body)}`},'Generowanie…');return}
+  const releaseAll=event.target.closest('[data-release-driver-devices]');if(releaseAll){
+    const driver=company.drivers.find(x=>x.id===releaseAll.dataset.releaseDriverDevices);if(!confirm(t('drivers.releaseConfirm',{name:driver.name})))return;
+    const driverId=driver.id;
+    optimistic({driverId,apply:()=>{company.driverDevices=company.driverDevices.filter(x=>x.userId!==driverId)},request:()=>licenseCloudApi.releaseDriverDevices(driverId)});
+    return;
+  }
+  const block=event.target.closest('[data-block-driver]');if(block){
+    const driver=company.drivers.find(x=>x.id===block.dataset.blockDriver),blocked=driver.status==='blocked';if(!confirm(t(blocked?'drivers.unblockConfirm':'drivers.blockConfirm',{name:driver.name})))return;
+    const driverId=driver.id;
+    optimistic({driverId,apply:()=>{const current=company.drivers.find(x=>x.id===driverId);if(current)current.status=blocked?(current.activatedAt?'active':'inactive'):'blocked'},request:()=>licenseCloudApi.setDriverBlocked(driverId,!blocked)});
+    return;
+  }
+  const remove=event.target.closest('[data-delete-driver]');if(remove){
+    const driver=company.drivers.find(x=>x.id===remove.dataset.deleteDriver);if(!confirm(t('drivers.deleteConfirm',{name:driver.name})))return;
+    const driverId=driver.id;
+    optimistic({driverId,apply:()=>{company.drivers=company.drivers.filter(x=>x.id!==driverId);company.driverDevices=company.driverDevices.filter(x=>x.userId!==driverId)},request:()=>licenseCloudApi.deleteDriver(driverId)});
+    return;
+  }
+  const release=event.target.closest('[data-release-device]');if(release){
+    const [role,deviceId]=release.dataset.releaseDevice.split(':');if(!confirm('Zwolnić to urządzenie?'))return;
+    const collection=role==='driver'?'driverDevices':'adminDevices';
+    optimistic({apply:()=>{company[collection]=company[collection].filter(x=>x.deviceId!==deviceId)},request:()=>licenseCloudApi.releaseDevice(role,deviceId)});
+  }
 });
 document.addEventListener('kursy:languagechange',render);
 (async()=>{try{const identity=getDeviceIdentity();const result=await licenseCloudApi.activateAdminDevice(identity);company=result.company;render()}catch(error){fail(error)}})();
