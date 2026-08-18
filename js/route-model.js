@@ -15,15 +15,22 @@ export function normalizeStop(stop={}){
   };
 }
 
+export function normalizeService(service={},index=0){
+  const targetTime=normalizeTime(service.targetTime||service.destinationTime||'06:00');
+  const suppliedName=String(service.name||service.courseName||'').trim();
+  return {
+    id:service.id||makeId('service'),
+    name:suppliedName||targetTime||`Kurs ${index+1}`,
+    targetTime
+  };
+}
+
 export function normalizeRoute(route={}){
   return {
     id:route.id||makeId('route'),
     name:route.name||'',
     description:route.description||'',
-    services:(route.services||[]).map(service=>({
-      id:service.id||makeId('service'),
-      targetTime:normalizeTime(service.targetTime||'06:00')
-    })),
+    services:(route.services||[]).map((service,index)=>normalizeService(service,index)),
     stops:(route.stops||[]).map(normalizeStop)
   };
 }
