@@ -57,6 +57,7 @@ export async function saveCloudRoutes(routes,expectedVersion){
     sessionToken:sessionToken(),
     ...getDeviceIdentity(),
     expectedVersion:Number(expectedVersion)||0,
+    routes:nextRoutes,
     routeVersions:{...routeVersions},
     routeChanges:{upserts,deletes}
   });
