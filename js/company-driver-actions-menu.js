@@ -15,6 +15,20 @@ function getLink(driverId){
   return item;
 }
 function setLink(driverId,item){const links=readLinks();links[driverId]=item;saveLinks(links)}
+async function ensureLink(driverId){
+  const current=getLink(driverId);
+  if(current)return current;
+  const result=await licenseCloudApi.createDriverActivation(driverId);
+  const item={url:activationUrl(result.activationToken),expiresAt:result.expiresAt||'',createdAt:new Date().toISOString()};
+  setLink(driverId,item);
+  return item;
+}
+function messageFor(url){return `Aktywuj aplikację kierowcy Kursy: ${url}`}
+function phoneFor(actions){return String(actions?.dataset.driverPhone||'').replace(/[^0-9+]/g,'')}
+function emailFor(actions){return String(actions?.dataset.driverEmail||'').trim()}
+function openSms(phone,text){window.location.href=`sms:${phone}?body=${encodeURIComponent(text)}`}
+function openWhatsApp(phone,text){window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`,'_blank','noopener')}
+function openEmail(email,text){window.location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Link aktywacyjny Kursy')}&body=${encodeURIComponent(text)}`}
 async function copyText(text){
   if(navigator.clipboard?.writeText&&document.hasFocus()){
     try{await navigator.clipboard.writeText(text);return true}catch{}
@@ -43,11 +57,16 @@ function enhanceRow(row){
   [copy,sms,release,block,remove].filter(Boolean).forEach(button=>{button.hidden=true});
   const blocked=block.textContent.trim().toLowerCase().includes('odblok');
   const cached=getLink(driverId);
+  const phone=phoneFor(actions),email=emailFor(actions),canShare=typeof navigator.share==='function';
   const linkMenu=document.createElement('details');
   linkMenu.className='actionMenu';
   linkMenu.innerHTML=`<summary class="btn">Link aktywacyjny</summary><div class="actionMenuPanel">
     ${menuButton('Generuj nowy link',`data-generate-driver-link="${driverId}"`)}
     ${menuButton('Kopiuj link',`data-copy-current-link="${driverId}"${cached?'':' disabled'}`)}
+    ${menuButton('Wyślij SMS',`data-send-driver-sms="${driverId}"${phone?'':' disabled'}`)}
+    ${menuButton('Wyślij przez WhatsApp',`data-send-driver-whatsapp="${driverId}"${phone?'':' disabled'}`)}
+    ${menuButton('Wyślij e-mail',`data-send-driver-email="${driverId}"${email?'':' disabled'}`)}
+    ${canShare?menuButton('Udostępnij…',`data-share-driver-link="${driverId}"`):''}
     ${release?menuButton('Zwolnij aktualne urządzenie',`data-release-current-device="${driverId}"`):''}
   </div>`;
   const manageMenu=document.createElement('details');
@@ -85,6 +104,23 @@ document.addEventListener('click',async event=>{
     const item=getLink(copy.dataset.copyCurrentLink);
     if(!item){alert('Nie ma zapamiętanego ważnego linku. Wybierz najpierw „Generuj nowy link”.');return}
     const done=await copyText(item.url);if(done)alert('Link do aplikacji kierowcy został skopiowany.');closeMenu(copy);return;
+  }
+  const send=event.target.closest('[data-send-driver-sms],[data-send-driver-whatsapp],[data-send-driver-email],[data-share-driver-link]');
+  if(send){
+    event.preventDefault();event.stopPropagation();
+    const actions=send.closest('.licenseRow')?.querySelector('.itemActions');
+    const original=send.textContent;send.disabled=true;send.textContent='Przygotowywanie…';
+    try{
+      const driverId=send.dataset.sendDriverSms||send.dataset.sendDriverWhatsapp||send.dataset.sendDriverEmail||send.dataset.shareDriverLink;
+      const item=await ensureLink(driverId),text=messageFor(item.url);
+      if(send.matches('[data-send-driver-sms]'))openSms(phoneFor(actions),text);
+      else if(send.matches('[data-send-driver-whatsapp]'))openWhatsApp(phoneFor(actions),text);
+      else if(send.matches('[data-send-driver-email]'))openEmail(emailFor(actions),text);
+      else await navigator.share({title:'Aktywacja Kursy',text,url:item.url});
+    }catch(error){
+      if(error?.name!=='AbortError')alert(error.message||'Nie udało się przygotować linku aktywacyjnego.');
+    }finally{send.disabled=false;send.textContent=original;closeMenu(send)}
+    return;
   }
   const release=event.target.closest('[data-release-current-device]');
   if(release){
