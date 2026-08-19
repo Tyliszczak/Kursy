@@ -1,0 +1,8 @@
+{
+  "name": "kursy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/editor-regression.test.mjs"
+  }
+}
