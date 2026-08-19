@@ -31,7 +31,18 @@ function render(){const logout='<div class="actions" style="justify-content:flex
 const value=(id,key)=>document.querySelector(`[data-company="${CSS.escape(id)}"][data-field="${key}"]`)?.value??'';
 async function refresh(){const result=await licenseCloudApi.ownerSnapshot();companies=result.companies||[];render()}
 async function run(task,button){if(button)button.disabled=true;try{await task();await refresh()}catch(error){alert(error.message)}finally{if(button)button.disabled=false}}
-async function showEntry(message=''){try{ownerState=await licenseCloudApi.ownerStatus();if(ownerState.configured)loginView(message);else setupView(message||'Konto właściciela nie jest jeszcze skonfigurowane.')}catch(error){loginView(error.message)}}
+async function showEntry(message=''){
+  try{
+    ownerState=await licenseCloudApi.ownerStatus();
+    if(ownerState.configured)loginView(message);
+    else setupView(message||'Konto właściciela nie jest jeszcze skonfigurowane.');
+  }catch(error){
+    // Starsze wdrożenia backendu nie wystawiają ownerStatus. Logowanie pozostaje
+    // dostępne, ponieważ ownerLogin jest obsługiwane przez wszystkie wersje API.
+    if(error.code==='UNKNOWN_ACTION')loginView(message);
+    else loginView(message||error.message);
+  }
+}
 
 document.addEventListener('submit',async event=>{
   const form=event.target;
@@ -54,3 +65,4 @@ document.addEventListener('click',async event=>{
   if(action==='block'&&confirm(company.license.blocked||company.license.status==='blocked'?'Odblokować firmę?':'Zablokować firmę?'))run(()=>licenseCloudApi.ownerSetBlocked(id,!(company.license.blocked||company.license.status==='blocked')),button);
 });
 if(loadOwnerSession())refresh().catch(async()=>{clearOwnerSession();await showEntry()});else showEntry();
+
