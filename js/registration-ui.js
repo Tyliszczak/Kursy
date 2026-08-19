@@ -45,5 +45,6 @@ $('#resetConfirmForm').addEventListener('submit',async event=>{event.preventDefa
 document.querySelectorAll('[data-plan]').forEach(button=>button.addEventListener('click',async()=>{try{const result=await registrationApi.checkout({companyId:state.companyId,plan:button.dataset.plan});if(result.checkoutUrl)location.href=result.checkoutUrl}catch(error){notice(error.message,'error')}}));
 
 const query=new URLSearchParams(location.search);
-if(query.get('mode')==='login'){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='login'));show('login')}
+if(query.get('mode')==='register'){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab==='register'));show('register')}
 if(query.get('checkout')==='success'&&query.get('session_id')){registrationApi.confirmCheckout(query.get('session_id')).then(result=>{notice(result.status==='paid'?t('registration.paymentPaid'):t('registration.paymentPending'),'ok')}).catch(error=>notice(error.message,'error'))}
+
