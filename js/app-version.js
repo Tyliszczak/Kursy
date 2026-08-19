@@ -1,9 +1,11 @@
 (()=>{
-  const VERSION='0.8.0';
-  window.KURSY_APP_VERSION=VERSION;
+  const VERSION='0.13.0';
+  globalThis.KURSY_APP_VERSION=VERSION;
   const paint=()=>{const b=document.querySelector('.badge');if(b)b.textContent=`WERSJA TESTOWA ${VERSION}`};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paint,{once:true});else paint();
-  if('serviceWorker' in navigator){
+  if(typeof document!=='undefined'){
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paint,{once:true});else paint();
+  }
+  if(typeof window!=='undefined'&&'serviceWorker' in navigator){
     let reloading=false;
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
       if(reloading)return;

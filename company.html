@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#d71920">
+  <meta name="description" content="Kursy – system tras i kursów dla kierowców.">
+  <meta name="kursy-api-url" content="https://script.google.com/macros/s/AKfycbxQLo99ebCC0A9rLpNS6V7yiJno5flPpt-4uh6QVbrKs26535BFl_8z-UBINBrG5WsqDw/exec">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Kursy">
+  <title>Kursy</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/company-driver-actions.css">
+  <script type="module" src="js/company-entry-guard.js"></script>
+</head>
+<body>
+<div id="installBanner" class="installBanner" hidden><div><strong>Zainstaluj aplikację Kursy</strong><small>Dodaj ją do telefonu lub tabletu i uruchamiaj jak zwykłą aplikację.</small></div><div class="installActions"><button id="installBtn" class="btn primary">Zainstaluj</button><button id="installClose" class="btn">Później</button></div></div>
+<div class="app"><aside class="side"><div class="brand"><div class="logo">TEST</div><div><h1>Kursy</h1><small>system tras i kursów</small></div></div><div class="nav"><button class="active" data-view="home">🏠 Strona główna</button><div class="navTitle">Dane operacyjne</div><button data-view="routes">🛣️ Moje trasy</button><div class="navTitle">Administracja</div><button data-view="admin">🔐 Dane firmy i kierowcy</button></div></aside>
+<main class="main"><header class="top"><strong id="pageTitle">Strona główna</strong><div class="online"><span class="dot" id="netDot"></span><span id="netState">Online</span><button class="btn" id="companyLogout" type="button">Wyloguj</button></div></header><div class="content"><div id="loadError" class="notice" hidden></div>
+<section id="view-home" class="view"><div class="hero"><div><span class="badge">WERSJA TESTOWA</span><h2>Witaj w Kursy</h2><p>Każda trasa zawiera swoje kursy, godziny i przystanki. Wszystko edytujesz w jednym miejscu.</p><div class="actions"><button class="btn primary" data-go="routes">Moje trasy</button></div></div><div class="road"></div></div><h3 class="section">Informacje o systemie</h3><div class="card statusGrid"><div class="status"><small>Firma</small><strong id="companyName">—</strong></div><div class="status"><small>Trasy</small><strong id="routesCount">0</strong></div><div class="status"><small>Kursy w trasach</small><strong id="coursesCount">0</strong></div><div class="status"><small>Dane</small><strong id="dataStatus">Ładowanie…</strong></div><div class="status"><small>Apps Script</small><strong id="apiStatus">Sprawdzanie…</strong></div></div></section>
+<section id="view-driver" class="view" hidden><div class="panel"><h2>Tryb kierowcy</h2><p class="muted">Wybierz kurs zapisany w repozytorium.</p><div id="driverCourses" class="list"></div></div><div id="activeCourse" class="panel" hidden style="margin-top:16px"><h2 id="activeCourseTitle"></h2><p class="muted" id="activeCourseMeta"></p><div id="activeStops"></div><div class="actions"><button class="btn primary" id="nextStopBtn">Następny przystanek</button><button class="btn" id="closeCourseBtn">Zamknij kurs</button></div></div></section>
+<section id="view-routes" class="view" hidden>
+  <div class="panel"><div class="sectionTop"><div><h2>Moje trasy</h2><p class="muted">Każda trasa zawiera wszystkie przypisane do niej kursy, godziny, przystanki oraz lokalizacje TAM i POWRÓT.</p></div><button class="btn primary" id="addRouteBtn">+ Dodaj trasę</button></div><div id="draftNotice" class="notice info" hidden>Zmiany zapisane lokalnie.</div><div class="toolbar"><button class="btn primary" id="saveCloudBtn" disabled>Wyślij do bazy danych</button><button class="btn" id="recoverySettingsBtn">Kopie odzyskiwania</button><button class="btn" id="exportRoutesBtn">Zapisz dane lokalnie</button><button class="btn" id="importRoutesBtn">Wczytaj dane lokalne</button><input id="importRoutesFile" type="file" accept=".json,application/json" hidden></div><div id="routesList" class="list"></div></div>
+  <div id="routeEditor" class="panel editorPanel" hidden>
+    <div class="sectionTop"><div><h2 id="routeEditorTitle">Nowa trasa</h2><p class="muted">Dodawane kursy i przystanki automatycznie budują tabelę rozkładu.</p></div><button class="btn" id="closeRouteEditor">Zamknij</button></div>
+    <form id="routeForm"><input id="routeId" type="hidden">
+      <div class="formGrid"><label class="field"><span>Nazwa trasy *</span><input id="routeName" required placeholder="np. Świebodzin – Zielona Góra"></label><label class="field"><span>Opis</span><input id="routeDescription" placeholder="np. linia pracownicza"></label></div>
+      <div class="sectionTop courseHeader"><div><h3>Kursy / godziny do pracy</h3><p class="muted">Każdy kurs określa godzinę, na którą pasażerowie jadą do pracy, np. 06:00, 14:00, 22:00.</p></div><button type="button" class="btn primary" id="addServiceBtn">+ Dodaj kurs</button></div>
+      <div id="serviceRows" class="serviceRows"></div>
+      <div class="stopsHeader"><h3>Tabela przystanków i godzin</h3><p class="muted">Dotknij ramki przystanku, aby otworzyć pełny edytor wszystkich jego danych.</p></div>
+      <div id="stopRows" class="stopRows"></div>
+      <div class="actions"><button type="submit" class="btn primary">Zapisz trasę</button><button type="button" class="btn" id="cancelRouteBtn">Anuluj</button></div>
+    </form>
+  </div>
+</section>
+<section id="view-courses" class="view" hidden><div class="panel"><h2>Kursy</h2><p class="muted">Kurs to przejazd danej trasy przypisany do konkretnej godziny docelowej.</p><div id="coursesList" class="list"></div></div></section>
+<section id="view-admin" class="view" hidden><div class="panel" id="companyLicensePanel"></div></section>
+</div></main></div>
+<div id="timePickerModal" class="modal" hidden><div class="modalCard"><h3>Ustaw godzinę</h3><div class="timePicker modalTimePicker"><div id="modalHour" class="modalWheelHost"></div><div class="timeColon">:</div><div id="modalMinute" class="modalWheelHost"></div></div><div class="actions"><button type="button" id="timePickerSave" class="btn primary">Zapisz godzinę</button><button type="button" id="timePickerCancel" class="btn">Anuluj</button></div></div></div>
+<script type="module" src="js/app-v2.js"></script><script src="js/offline-location.js"></script><script src="js/stop-editor-time-wheels.js"></script><script src="js/stop-editor-location-pins.js"></script><script src="js/card-list-mode.js"></script><script src="js/editor-window-controls.js"></script><script src="js/data-actions-panel.js"></script><script type="module" src="js/company-license-ui.js"></script><script type="module" src="js/company-driver-actions-menu.js"></script><script type="module" src="js/client-workflow.js"></script><script src="js/app-version.js"></script><script type="module" src="js/map-editor-bridge.js"></script></body></html>

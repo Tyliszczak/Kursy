@@ -1,0 +1,17 @@
+{
+  "name": "Kursy — Trasy 2.0",
+  "short_name": "Kursy Kierowca",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "Tyliszczak.png",
+      "sizes": "762x762",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
