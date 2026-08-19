@@ -9,12 +9,15 @@ const toTime=value=>{
   return normalizeTime(`${String(Number(h)).padStart(2,'0')}:${m}`);
 };
 const confidence=value=>['high','medium','low'].includes(value)?value:'medium';
+const toOffset=value=>{
+  if(value===''||value===null||value===undefined)return null;
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=0?Math.round(number):null;
+};
 
 export function normalizeImportedRoutes(payload={}){
   const sourceRoutes=Array.isArray(payload)?payload:Array.isArray(payload.routes)?payload.routes:[];
   return sourceRoutes.map((sourceRoute,routeIndex)=>{
-    const routeName=text(sourceRoute.name||sourceRoute.routeName)||`Trasa ${routeIndex+1}`;
-    const routeAutoNamed=!text(sourceRoute.name||sourceRoute.routeName);
     const sourceServices=Array.isArray(sourceRoute.services)?sourceRoute.services:Array.isArray(sourceRoute.courses)?sourceRoute.courses:[];
     const services=(sourceServices.length?sourceServices:[{}]).map((sourceService,serviceIndex)=>{
       const suppliedName=text(sourceService.name||sourceService.courseName);
@@ -25,7 +28,8 @@ export function normalizeImportedRoutes(payload={}){
         ...normalizeService({
           id:sourceService.id||makeId('service'),
           name:finalName,
-          targetTime:targetTime||'00:00'
+          targetTime:targetTime||'00:00',
+          returnDepartureOffsetMinutes:toOffset(sourceService.returnDepartureOffsetMinutes??sourceService.returnOffsetMinutes??sourceService.departureAfterShiftMinutes)
         },serviceIndex),
         sourceName:suppliedName||'',
         targetTimeKnown:Boolean(targetTime),
@@ -33,6 +37,10 @@ export function normalizeImportedRoutes(payload={}){
         confidence:confidence(sourceService.confidence)
       };
     });
+    const firstKnownTarget=services.find(service=>service.targetTimeKnown)?.targetTime||'';
+    const suppliedRouteName=text(sourceRoute.name||sourceRoute.routeName);
+    const routeName=suppliedRouteName||firstKnownTarget||`Trasa ${routeIndex+1}`;
+    const routeAutoNamed=!suppliedRouteName;
     const serviceIds=services.map(service=>service.id);
     const sourceStops=Array.isArray(sourceRoute.stops)?sourceRoute.stops:[];
     const stops=sourceStops.map((sourceStop,stopIndex)=>{
@@ -52,7 +60,7 @@ export function normalizeImportedRoutes(payload={}){
       return {
         ...stop,
         autoNamed:!text(sourceStop.name||sourceStop.stopName),
-        locationNeedsReview:Boolean(sourceStop.locationNeedsReview)||confidence(sourceStop.locationConfidence)==='low',
+        locationNeedsReview:Boolean(sourceStop.locationNeedsReview)||confidence(sourceStop.locationConfidence)==='low'||!stop.locationOut,
         confidence:confidence(sourceStop.confidence)
       };
     });
