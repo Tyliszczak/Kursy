@@ -1,4 +1,4 @@
-export const DEFAULT_LOCATION='Centrum Zielonej Góry, Zielona Góra';
+export const DEFAULT_LOCATION='';
 
 export const makeId=(prefix='id')=>`${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
 export const clone=value=>JSON.parse(JSON.stringify(value));
@@ -18,10 +18,13 @@ export function normalizeStop(stop={}){
 export function normalizeService(service={},index=0){
   const targetTime=normalizeTime(service.targetTime||service.destinationTime||'06:00');
   const suppliedName=String(service.name||service.courseName||'').trim();
+  const offsetRaw=service.returnDepartureOffsetMinutes??service.returnOffsetMinutes??service.departureAfterShiftMinutes;
+  const offsetNumber=offsetRaw===''||offsetRaw===null||offsetRaw===undefined?null:Number(offsetRaw);
   return {
     id:service.id||makeId('service'),
     name:suppliedName||targetTime||`Kurs ${index+1}`,
-    targetTime
+    targetTime,
+    returnDepartureOffsetMinutes:Number.isFinite(offsetNumber)&&offsetNumber>=0?Math.round(offsetNumber):null
   };
 }
 
