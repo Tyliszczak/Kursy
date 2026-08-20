@@ -6,7 +6,7 @@ const COOKIE={
 };
 
 const COMPANY_ACTIONS=new Set([
-  'logout','createCheckout','confirmCheckout','licenseStatus','loadRoutes','saveRoutes',
+  'logout','createCheckout','confirmCheckout','licenseStatus','loadRoutes','saveRoutes','companyPunctuality',
   'companySnapshot','activateAdminDevice','renameAdminDevice','updateCompanyContact','changeCompanyPassword',
   'addDriver','createDriverActivation','setDriverBlocked','releaseDriverDevices','deleteDriver','releaseDevice'
 ]);
@@ -14,7 +14,7 @@ const OWNER_ACTIONS=new Set([
   'ownerLogout','ownerSnapshot','ownerCreateCompany','ownerUpdateCompany',
   'ownerUpdateLicense','ownerExtendTrial','ownerEndTrial','ownerGrantPaid','ownerSetBlocked'
 ]);
-const DRIVER_ACTIONS=new Set(['driverStatus','driverRoutes','driverVehicles']);
+const DRIVER_ACTIONS=new Set(['driverStatus','driverRoutes','driverVehicles','recordPunctuality']);
 
 const json=(body,status=200,headers=new Headers())=>{
   headers.set('Content-Type','application/json; charset=utf-8');
