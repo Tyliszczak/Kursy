@@ -1,3 +1,5 @@
+import './punctuality-panel.js';
+
 const RESULT_KEY='kursy.map.result.v1';
 
 function rowKey(card){if(!card.dataset.mapKey)card.dataset.mapKey=`stop-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;return card.dataset.mapKey}
