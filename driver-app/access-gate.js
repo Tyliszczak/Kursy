@@ -17,7 +17,6 @@ async function start(){
   if(!status.mayUse){deny(t('driver.accessActivation'),{allowActivation:true});return}
   history.replaceState({},'',location.pathname);
   globalThis.KURSY_DRIVER_CONTEXT=Object.freeze({companyId:status.company.id,driverId:status.driver.id,deviceId:identity.deviceId,fingerprint:identity.fingerprint,dataApiUrl:licenseCloudApi.endpoint()});
-  gate.hidden=true;shell.hidden=false;await import('./app.js?v=cloud-1');await loadScript('./wake-style.js?v=cloud-1');await loadScript('./vehicles.js?v=cloud-1');await loadScript('./nav-map.js?v=cloud-1');
+  gate.hidden=true;shell.hidden=false;await import('./app.js?v=cloud-1');await import('./punctuality-auto.js?v=1');await loadScript('./wake-style.js?v=cloud-1');await loadScript('./vehicles.js?v=cloud-1');await loadScript('./nav-map.js?v=cloud-1');
 }
 start().catch(error=>{console.error(error);deny(t('driver.accessError'))});
-
