@@ -4,10 +4,14 @@ const mad=values=>{if(!values.length)return 0;const m=median(values);return medi
 
 export const PUNCTUALITY_DEFAULTS={
   minimumSamples:10,
-  minimumMeaningfulMinutes:5,
+  minimumMeaningfulMinutes:1,
   strongMeaningfulMinutes:8,
   minimumConsistency:0.7,
   maximumMadMinutes:5,
+  smallDeviationMaxMinutes:4,
+  smallDeviationMinimumSamples:12,
+  smallDeviationMinimumConsistency:0.9,
+  smallDeviationMaximumMadMinutes:1.5,
   lookbackDays:45
 };
 
@@ -50,9 +54,9 @@ function groupEvents(events){
 function proposedShift(value){
   const sign=Math.sign(value);
   const abs=Math.abs(value);
-  if(abs<5)return 0;
-  const rounded=Math.round(abs);
-  return sign*clamp(rounded,5,15);
+  if(abs<1)return 0;
+  const rounded=Math.max(1,Math.round(abs));
+  return sign*clamp(rounded,1,15);
 }
 
 export function analyzePunctuality(events=[],options={}){
@@ -64,18 +68,29 @@ export function analyzePunctuality(events=[],options={}){
   });
   const recommendations=[];
   for(const rows of groupEvents(recent).values()){
-    if(rows.length<cfg.minimumSamples)continue;
     const deviations=rows.map(row=>row.deviationMinutes);
     const med=median(deviations);
+    const absMedian=Math.abs(med);
+    if(absMedian<cfg.minimumMeaningfulMinutes)continue;
+
     const spread=mad(deviations);
     const direction=Math.sign(med);
-    const sameDirection=direction===0?0:deviations.filter(value=>Math.sign(value)===direction&&Math.abs(value)>=cfg.minimumMeaningfulMinutes).length/deviations.length;
-    if(Math.abs(med)<cfg.minimumMeaningfulMinutes)continue;
-    if(sameDirection<cfg.minimumConsistency)continue;
-    if(spread>cfg.maximumMadMinutes)continue;
+    const sameDirection=direction===0?0:deviations.filter(value=>Math.sign(value)===direction).length/deviations.length;
+    const smallDeviation=absMedian<=cfg.smallDeviationMaxMinutes;
+
+    if(smallDeviation){
+      if(rows.length<cfg.smallDeviationMinimumSamples)continue;
+      if(sameDirection<cfg.smallDeviationMinimumConsistency)continue;
+      if(spread>cfg.smallDeviationMaximumMadMinutes)continue;
+    }else{
+      if(rows.length<cfg.minimumSamples)continue;
+      if(sameDirection<cfg.minimumConsistency)continue;
+      if(spread>cfg.maximumMadMinutes)continue;
+    }
+
     const sample=rows[rows.length-1];
     const shift=proposedShift(med);
-    const severity=Math.abs(med)>=cfg.strongMeaningfulMinutes?'strong':'moderate';
+    const severity=absMedian>=cfg.strongMeaningfulMinutes?'strong':smallDeviation?'small-stable':'moderate';
     recommendations.push({
       routeId:sample.routeId,routeName:sample.routeName,
       courseId:sample.courseId,courseName:sample.courseName,
